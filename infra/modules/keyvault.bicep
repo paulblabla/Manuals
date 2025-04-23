@@ -18,8 +18,6 @@ resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' = {
   properties: {
     enabledForDeployment: true
     enabledForTemplateDeployment: true
-    enabledForDiskEncryption: false
-    enableRbacAuthorization: false
     tenantId: subscription().tenantId
     accessPolicies: !empty(currentUserObjectId) ? [
       {
@@ -34,7 +32,6 @@ resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' = {
     ] : []
     sku: {
       name: 'standard'
-      family: 'A'
     }
     networkAcls: {
       defaultAction: 'Allow'
