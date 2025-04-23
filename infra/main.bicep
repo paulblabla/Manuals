@@ -3,6 +3,7 @@ targetScope = 'subscription'
 
 @description('Hoofd Bicep template voor Manuals project')
 param location string = 'westeurope'
+param sqlLocation string = 'westeurope'
 param environmentName string
 
 // SQL Azure AD Admin parameters
@@ -75,7 +76,7 @@ module database 'modules/database.bicep' = {
   name: 'databaseDeployment'
   scope: resourceGroup  // Specifiek de resource group aangeven
   params: {
-    location: location
+    location: sqlLocation
     environmentName: environmentName
     adminUsername: sqlAdminUsername
     adminPassword: sqlPassword
