@@ -50,9 +50,6 @@ module sqlPasswordSecret 'modules/keyvaultsecret.bicep' = {
     secretName: 'sqlAdminPassword'
     secretValue: sqlPassword
   }
-  dependsOn: [
-    keyVault
-  ]
 }
 
 // Modules importeren
