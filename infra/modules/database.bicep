@@ -21,7 +21,6 @@ resource sqlServer 'Microsoft.Sql/servers@2022-05-01-preview' = {
   properties: {
     administratorLogin: adminUsername
     administratorLoginPassword: adminPassword
-    version: '12.0'
     publicNetworkAccess: 'Enabled'
     
     // Minimale TLS-versie voor beveiliging
@@ -49,9 +48,7 @@ resource sqlDatabase 'Microsoft.Sql/servers/databases@2022-05-01-preview' = {
     tier: 'Basic'
   }
   properties: {
-    collation: 'SQL_Latin1_General_CP1_CI_AS'
     maxSizeBytes: 2147483648  // 2GB
-    
   }
 }
 

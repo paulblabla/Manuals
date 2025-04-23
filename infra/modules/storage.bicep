@@ -18,10 +18,8 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2022-09-01' = {
   sku: {
     name: 'Standard_LRS'  // Lokaal redundante opslag (goedkoopste optie)
   }
-  kind: 'StorageV2'
   properties: {
     supportsHttpsTrafficOnly: true
-    accessTier: 'Hot'
     minimumTlsVersion: 'TLS1_2'
     networkAcls: {
       defaultAction: 'Allow'  // Vereenvoudigd voor gratis tier
