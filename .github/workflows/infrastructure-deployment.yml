@@ -45,11 +45,33 @@ jobs:
         tenant-id: ${{ secrets.AZURE_TENANT_ID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-    # Installeer Azure CLI en Bicep
-    - name: Install Azure CLI and Bicep
+    # Bepaal environment naam en parameters bestand
+    - name: Set environment variables
+      id: env_vars
       run: |
-        curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          ENV_NAME="${{ inputs.environment }}"
+        else
+          ENV_NAME="development"
+        fi
+        
+        # Map environment name naar bicep param bestand
+        if [ "$ENV_NAME" == "development" ]; then
+          PARAM_FILE="parameters.dev.json"
+        elif [ "$ENV_NAME" == "test" ]; then
+          PARAM_FILE="parameters.test.json"
+        elif [ "$ENV_NAME" == "production" ]; then
+          PARAM_FILE="parameters.prod.json"
+        fi
+        
+        echo "environment=$ENV_NAME" >> $GITHUB_OUTPUT
+        echo "param_file=$PARAM_FILE" >> $GITHUB_OUTPUT
+
+    # Controleer/Lint Bicep bestanden
+    - name: Lint Bicep Files
+      run: |
         az bicep install
+        az bicep build --file infra/main.bicep
 
     # Valideer Bicep templates
     - name: Validate Bicep Templates
@@ -57,22 +79,12 @@ jobs:
         az deployment sub validate \
           --location westeurope \
           --template-file infra/main.bicep \
-          --parameters infra/parameters.dev.json
+          --parameters infra/${{ steps.env_vars.outputs.param_file }}
 
-    # Deploy infrastructuur
+    # Deploy alles in één keer op subscription niveau
     - name: Deploy Infrastructure
       run: |
-        # Maak resourcegroep aan als deze niet bestaat
-        az group create --name rg-manuals-dev --location westeurope
-        
-        # Deploy infrastructuur
-        az deployment group create \
-          --resource-group rg-manuals-dev \
+        az deployment sub create \
+          --location westeurope \
           --template-file infra/main.bicep \
-          --parameters infra/parameters.dev.json
-
-    # Optioneel: Voer een basic test uit
-    - name: Basic Infrastructure Validation
-      run: |
-        # Controleer de gemaakte resources
-        az resource list --resource-group rg-manuals-dev -o table
+          --parameters infra/${{ steps.env_vars.outputs.param_file }}

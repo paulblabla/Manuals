@@ -3,7 +3,7 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "environmentName": {
-      "value": "dev"
+      "value": "test"
     },
     "location": {
       "value": "westeurope"
@@ -14,7 +14,7 @@
     "sqlAdminPassword": {
       "reference": {
         "keyVault": {
-          "id": "/subscriptions/9c0da8ca-def9-45bd-a681-e4c91acdd81b/resourceGroups/rg-manuals-dev/providers/Microsoft.KeyVault/vaults/kv-manuals-dev"
+          "id": "/subscriptions/9c0da8ca-def9-45bd-a681-e4c91acdd81b/resourceGroups/rg-manuals-test/providers/Microsoft.KeyVault/vaults/kv-manuals-test"
         },
         "secretName": "sqlAdminPassword"
       }

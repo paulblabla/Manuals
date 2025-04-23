@@ -1,23 +1,23 @@
 {
-    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
-    "contentVersion": "1.0.0.0",
-    "parameters": {
-        "location": {
-            "value": "westeurope"
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": {
+      "value": "prod"
+    },
+    "location": {
+      "value": "westeurope"
+    },
+    "sqlAdminUsername": {
+      "value": "manuals_admin"
+    },
+    "sqlAdminPassword": {
+      "reference": {
+        "keyVault": {
+          "id": "/subscriptions/9c0da8ca-def9-45bd-a681-e4c91acdd81b/resourceGroups/rg-manuals-prod/providers/Microsoft.KeyVault/vaults/kv-manuals-prod"
         },
-        "environmentName": {
-            "value": "prod"
-        },
-        "sqlAdminUsername": {
-            "value": "manuals-admin-prod"
-        },
-        "sqlAdminPassword": {
-            "reference": {
-                "keyVault": {
-                    "id": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.KeyVault/vaults/{keyVaultName}"
-                },
-                "secretName": "SqlAdminPasswordProd"
-            }
-        }
+        "secretName": "sqlAdminPassword"
+      }
     }
+  }
 }

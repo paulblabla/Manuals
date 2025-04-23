@@ -1,6 +1,6 @@
 @description('Storage account voor Manuals project')
-@param('location') location string = resourceGroup().location
-@param('environmentName') environmentName string
+param location string = resourceGroup().location
+param environmentName string
 
 var tags = {
   Environment: environmentName
@@ -8,8 +8,11 @@ var tags = {
   ManagedBy: 'Bicep'
 }
 
+// Unieke naam voor storage account garanderen
+var storageAccountName = 'stomanualspdfs${environmentName}'
+
 resource storageAccount 'Microsoft.Storage/storageAccounts@2022-09-01' = {
-  name: 'stomanualspdfs${environmentName}'
+  name: storageAccountName
   location: location
   tags: tags
   sku: {
@@ -29,9 +32,16 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2022-09-01' = {
   }
 }
 
+// Blob service resource expliciet definiëren
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2022-09-01' = {
+  parent: storageAccount
+  name: 'default'
+}
+
 // Blob container voor handleidingen
 resource manualsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2022-09-01' = {
-  name: '${storageAccount.name}/default/manuals'
+  parent: blobService
+  name: 'manuals'
   properties: {
     publicAccess: 'None'  // Geen publieke toegang
   }
@@ -39,7 +49,8 @@ resource manualsContainer 'Microsoft.Storage/storageAccounts/blobServices/contai
 
 // Container voor tijdelijke uploads
 resource uploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2022-09-01' = {
-  name: '${storageAccount.name}/default/uploads'
+  parent: blobService
+  name: 'uploads'
   properties: {
     publicAccess: 'None'  // Geen publieke toegang
   }
@@ -47,7 +58,8 @@ resource uploadsContainer 'Microsoft.Storage/storageAccounts/blobServices/contai
 
 output storageAccountName string = storageAccount.name
 output storageAccountId string = storageAccount.id
-output primaryAccessKey string = storageAccount.listKeys().keys[0].value
+// Gebruik een veiligere benadering voor verbindingsgegevens - vermijd directe keys in outputs
+@description('Storage account connection string zonder access keys')
+output connectionString string = 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage};'
 output manualsContainerName string = manualsContainer.name
 output uploadsContainerName string = uploadsContainer.name
-output connectionString string = 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=core.windows.net;'
