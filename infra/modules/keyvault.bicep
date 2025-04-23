@@ -1,7 +1,7 @@
-@description('Key Vault voor Manuals project')
-@param('location') location string = resourceGroup().location
-@param('environmentName') environmentName string
-@param('tenantId') tenantId string = subscription().tenantId
+@description('Key Vault voor het opslaan van secrets')
+param location string = resourceGroup().location
+param environmentName string
+param currentUserObjectId string = ''
 
 var tags = {
   Environment: environmentName
@@ -9,38 +9,41 @@ var tags = {
   ManagedBy: 'Bicep'
 }
 
+var keyVaultName = 'kv-manuals-${environmentName}'
+
 resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' = {
-  name: 'kv-manuals-${environmentName}'
+  name: keyVaultName
   location: location
   tags: tags
   properties: {
-    sku: {
-      family: 'A'
-      name: 'standard'
-    }
-    tenantId: tenantId
-    accessPolicies: []
+    enabledForDeployment: true
     enabledForTemplateDeployment: true
+    enabledForDiskEncryption: false
     enableRbacAuthorization: false
-    softDeleteRetentionInDays: 7
+    tenantId: subscription().tenantId
+    accessPolicies: !empty(currentUserObjectId) ? [
+      {
+        tenantId: subscription().tenantId
+        objectId: currentUserObjectId
+        permissions: {
+          keys: ['Get', 'List', 'Update', 'Create', 'Delete']
+          secrets: ['Get', 'List', 'Set', 'Delete']
+          certificates: ['Get', 'List', 'Update', 'Create', 'Delete']
+        }
+      }
+    ] : []
+    sku: {
+      name: 'standard'
+      family: 'A'
+    }
     networkAcls: {
       defaultAction: 'Allow'
       bypass: 'AzureServices'
-      virtualNetworkRules: []
-      ipRules: []
     }
   }
 }
 
-// Voorbeeld van een secret (kan later dynamisch worden toegevoegd)
-resource databasePasswordSecret 'Microsoft.KeyVault/vaults/secrets@2022-07-01' = {
-  parent: keyVault
-  name: 'SqlAdminPassword'
-  properties: {
-    // Werkelijke wachtwoord wordt later toegevoegd
-    value: ''
-  }
-}
-
+// Output
 output keyVaultName string = keyVault.name
+output keyVaultId string = keyVault.id
 output keyVaultUri string = keyVault.properties.vaultUri

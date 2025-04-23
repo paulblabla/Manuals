@@ -5,6 +5,8 @@ param environmentName string
 param adminUsername string
 @secure()
 param adminPassword string
+param adminGroupName string
+param adminGroupObjectId string
 
 var tags = {
   Environment: environmentName
@@ -24,6 +26,16 @@ resource sqlServer 'Microsoft.Sql/servers@2022-05-01-preview' = {
     
     // Minimale TLS-versie voor beveiliging
     minimalTlsVersion: '1.2'
+    
+    // Azure AD Groep als administrator
+    administrators: {
+      administratorType: 'ActiveDirectory'
+      principalType: 'Group'
+      login: adminGroupName
+      sid: adminGroupObjectId
+      tenantId: subscription().tenantId
+      azureADOnlyAuthentication: false
+    }
   }
 }
 
