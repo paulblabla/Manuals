@@ -11,13 +11,11 @@
     "sqlAdminUsername": {
       "value": "manuals_admin"
     },
-    "sqlAdminPassword": {
-      "reference": {
-        "keyVault": {
-          "id": "/subscriptions/9c0da8ca-def9-45bd-a681-e4c91acdd81b/resourceGroups/rg-manuals-prod/providers/Microsoft.KeyVault/vaults/kv-manuals-prod"
-        },
-        "secretName": "sqlAdminPassword"
-      }
+    "sqlAdminGroupName": {
+      "value": "SQL Database Administrators"
+    },
+    "sqlAdminGroupObjectId": {
+      "value": "be3b7074-997c-4acb-8adf-e47fbb133f28"
     }
   }
 }
