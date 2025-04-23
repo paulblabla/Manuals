@@ -52,8 +52,6 @@ resource sqlDatabase 'Microsoft.Sql/servers/databases@2022-05-01-preview' = {
     collation: 'SQL_Latin1_General_CP1_CI_AS'
     maxSizeBytes: 2147483648  // 2GB
     
-    // Bewaartermijn voor database backups
-    backupStorageRedundancy: 'Local'
   }
 }
 
