@@ -1,12 +1,26 @@
 name: Infrastructure Deployment
 
 on:
+  # Bestaande triggers behouden
   push:
     branches: 
       - main
     paths:
       - 'infra/**'
       - '.github/workflows/infrastructure-deployment.yml'
+  
+  # Handmatige trigger toevoegen
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - test
+          - production
 
 # Benodigde permissies voor de workflow
 permissions:
@@ -16,7 +30,7 @@ permissions:
 jobs:
   validate-and-deploy:
     runs-on: ubuntu-latest
-    environment: development
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'development' }}
     
     steps:
     # Checkout de repository
