@@ -34,13 +34,6 @@ permissions:
   pull-requests: write
   id-token: write  # Nodig voor OIDC authenticatie met Azure
 
-# Variabelen die in de hele workflow gebruikt kunnen worden
-env:
-  DOTNET_VERSION: '8.0.x'
-  SOLUTION_PATH: 'Manuals.sln'
-  API_PROJECT_PATH: 'src/backend/Manuals.API/Manuals.API.csproj'
-  TEST_PATH: 'tests/backend/'
-
 jobs:
   build-and-deploy:
     name: Build, Test and Deploy
@@ -56,24 +49,24 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
+        dotnet-version: '8.0.x'
     
     # NuGet packages herstellen
     - name: Restore dependencies
-      run: dotnet restore ${{ env.SOLUTION_PATH }}
+      run: dotnet restore
     
     # Solution bouwen
     - name: Build solution
-      run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release --no-restore
+      run: dotnet build --configuration Release --no-restore
     
-    # Tests uitvoeren
-    - name: Run tests
-      run: dotnet test ${{ env.TEST_PATH }} --configuration Release --no-build --verbosity normal
+    # Tests uitvoeren 
+    - name: Run API tests
+      run: dotnet test --configuration Release --no-build --verbosity normal
     
     # Build artifact publiceren
     - name: Publish API project
       if: success() && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
-      run: dotnet publish ${{ env.API_PROJECT_PATH }} -c Release -o publish
+      run: dotnet publish src/backend/Manuals.API/Manuals.API.csproj -c Release -o publish
     
     # Bepaal welke app name we gebruiken op basis van environment
     - name: Set environment variables
