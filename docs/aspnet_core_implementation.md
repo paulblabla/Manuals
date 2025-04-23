@@ -51,39 +51,40 @@ AutoMapper zorgt voor:
 
 ```
 /src
-  /Manuals.API              # ASP.NET Core Web API project
-    /Endpoints              # Gegroepeerde Minimal API endpoints
-    /Models                 # API models/DTOs als record types
-    /Middleware             # Custom middleware zoals exception handling
-  
-  /Manuals.Application      # Application logic
-    /Commands               # Write operations
-      /CreateManual         
-        CreateManualCommand.cs
-        CreateManualCommandHandler.cs
-        CreateManualCommandValidator.cs
-    /Queries                # Read operations
-      /GetManualById
-        GetManualByIdQuery.cs
-        GetManualByIdQueryHandler.cs
-    /Behaviors              # Cross-cutting concerns
-      ValidationBehavior.cs
-      LoggingBehavior.cs
-    /Mappings               # AutoMapper profiles
-      MappingProfile.cs
-  
-  /Manuals.Domain           # Domain models and business logic
-    /Entities
-    /Exceptions
-    /ValueObjects
-  
-  /Manuals.Infrastructure   # Infrastructure concerns
-    /Persistence            # Database access
-      /Configurations
-      ApplicationDbContext.cs
-    /Services               # External services
-      PdfExtractionService.cs
-      VectorSearchService.cs
+  /backend
+    /Manuals.API              # ASP.NET Core Web API project
+      /Endpoints              # Gegroepeerde Minimal API endpoints
+      /Models                 # API models/DTOs als record types
+      /Middleware             # Custom middleware zoals exception handling
+    
+    /Manuals.Application      # Application logic
+      /Commands               # Write operations
+        /CreateManual         
+          CreateManualCommand.cs
+          CreateManualCommandHandler.cs
+          CreateManualCommandValidator.cs
+      /Queries                # Read operations
+        /GetManualById
+          GetManualByIdQuery.cs
+          GetManualByIdQueryHandler.cs
+      /Behaviors              # Cross-cutting concerns
+        ValidationBehavior.cs
+        LoggingBehavior.cs
+      /Mappings               # AutoMapper profiles
+        MappingProfile.cs
+    
+    /Manuals.Domain           # Domain models and business logic
+      /Entities
+      /Exceptions
+      /ValueObjects
+    
+    /Manuals.Infrastructure   # Infrastructure concerns
+      /Persistence            # Database access
+        /Configurations
+        ApplicationDbContext.cs
+      /Services               # External services
+        PdfExtractionService.cs
+        VectorSearchService.cs
 ```
 
 ## Voorbeeld Minimal API Endpoints
