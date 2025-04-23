@@ -31,7 +31,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' = {
       }
     ] : []
     sku: {
-      name: 'standard'
+      name: 'Standard'
     }
     networkAcls: {
       defaultAction: 'Allow'

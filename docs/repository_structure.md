@@ -19,15 +19,19 @@ Voor het Manuals project hanteren we een monorepo-benadering (alles in één rep
     git_cheatsheet.md            # Handige Git commando's
     ...
   /src
-    /Manuals.API        # ASP.NET Core backend
-    /Manuals.Frontend   # React frontend
-    /Manuals.Application
-    /Manuals.Domain
-    /Manuals.Infrastructure
+    /backend            # Backend code
+      /Manuals.API        # ASP.NET Core backend
+      /Manuals.Application
+      /Manuals.Domain
+      /Manuals.Infrastructure
+    /frontend           # Frontend code
+      /Manuals.Frontend   # React frontend
   /tests
-    /Manuals.API.Tests
-    /Manuals.Application.Tests
-    /Manuals.Frontend.Tests
+    /backend            # Backend tests
+      /Manuals.API.Tests
+      /Manuals.Application.Tests
+    /frontend           # Frontend tests
+      /Manuals.Frontend.Tests
     ...
   /infra                # Bicep templates
     /modules
@@ -105,17 +109,17 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'src/Manuals.API/**'
-      - 'src/Manuals.Application/**'
-      - 'src/Manuals.Domain/**'
-      - 'src/Manuals.Infrastructure/**'
+      - 'src/backend/Manuals.API/**'
+      - 'src/backend/Manuals.Application/**'
+      - 'src/backend/Manuals.Domain/**'
+      - 'src/backend/Manuals.Infrastructure/**'
   pull_request:
     branches: [ main ]
     paths:
-      - 'src/Manuals.API/**'
-      - 'src/Manuals.Application/**'
-      - 'src/Manuals.Domain/**'
-      - 'src/Manuals.Infrastructure/**'
+      - 'src/backend/Manuals.API/**'
+      - 'src/backend/Manuals.Application/**'
+      - 'src/backend/Manuals.Domain/**'
+      - 'src/backend/Manuals.Infrastructure/**'
 
 jobs:
   build-and-test:
@@ -150,7 +154,7 @@ jobs:
           dotnet-version: '8.0.x'
           
       - name: Publish
-        run: dotnet publish src/Manuals.API/Manuals.API.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp
+        run: dotnet publish src/backend/Manuals.API/Manuals.API.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp
         
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
@@ -169,11 +173,11 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'src/Manuals.Frontend/**'
+      - 'src/frontend/Manuals.Frontend/**'
   pull_request:
     branches: [ main ]
     paths:
-      - 'src/Manuals.Frontend/**'
+      - 'src/frontend/Manuals.Frontend/**'
 
 jobs:
   build-and-deploy:
@@ -188,17 +192,17 @@ jobs:
           
       - name: Install dependencies
         run: |
-          cd src/Manuals.Frontend
+          cd src/frontend/Manuals.Frontend
           npm ci
           
       - name: Build
         run: |
-          cd src/Manuals.Frontend
+          cd src/frontend/Manuals.Frontend
           npm run build
           
       - name: Test
         run: |
-          cd src/Manuals.Frontend
+          cd src/frontend/Manuals.Frontend
           npm test
           
       - name: Deploy to Azure Static Web App
@@ -208,7 +212,7 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
-          app_location: "src/Manuals.Frontend/dist"
+          app_location: "src/frontend/Manuals.Frontend/dist"
           api_location: ""
           output_location: ""
 ```

@@ -125,6 +125,34 @@
 - Vectoropslag in Azure SQL Database
 - Implementatie van similarity search in backend code
 
+## Project Structuur
+
+### Directory Structuur
+```
+/Manuals
+  /docs                 # Projectdocumentatie
+  /src
+    /backend            # Backend projecten
+      /Manuals.API
+      /Manuals.Application
+      /Manuals.Domain
+      /Manuals.Infrastructure
+    /frontend           # Frontend projecten
+      /Manuals.Frontend
+  /tests
+    /backend            # Backend tests
+      /Manuals.API.Tests
+      /Manuals.Application.Tests
+    /frontend           # Frontend tests  
+      /Manuals.Frontend.Tests
+  /infra                # Bicep templates
+    /modules
+    main.bicep
+    parameters.*.json
+  /scripts
+  /tools
+```
+
 ## Infrastructuur als Code (Bicep)
 
 ### Bicep Structuur
