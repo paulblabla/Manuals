@@ -8,6 +8,9 @@
     "location": {
       "value": "westeurope"
     },
+    "sqlLocation": {
+      "value": "westeurope"
+    },
     "sqlAdminUsername": {
       "value": "manuals_admin"
     },
