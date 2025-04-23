@@ -1,0 +1,64 @@
+name: Infrastructure Deployment
+
+on:
+  push:
+    branches: 
+      - main
+    paths:
+      - 'infra/**'
+      - '.github/workflows/infrastructure-deployment.yml'
+
+# Benodigde permissies voor de workflow
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  validate-and-deploy:
+    runs-on: ubuntu-latest
+    environment: development
+    
+    steps:
+    # Checkout de repository
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    # Azure login met OIDC (veiliger dan service principal)
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+    # Installeer Azure CLI en Bicep
+    - name: Install Azure CLI and Bicep
+      run: |
+        curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+        az bicep install
+
+    # Valideer Bicep templates
+    - name: Validate Bicep Templates
+      run: |
+        az deployment sub validate \
+          --location westeurope \
+          --template-file infra/main.bicep \
+          --parameters infra/parameters.dev.json
+
+    # Deploy infrastructuur
+    - name: Deploy Infrastructure
+      run: |
+        # Maak resourcegroep aan als deze niet bestaat
+        az group create --name rg-manuals-dev --location westeurope
+        
+        # Deploy infrastructuur
+        az deployment group create \
+          --resource-group rg-manuals-dev \
+          --template-file infra/main.bicep \
+          --parameters infra/parameters.dev.json
+
+    # Optioneel: Voer een basic test uit
+    - name: Basic Infrastructure Validation
+      run: |
+        # Controleer de gemaakte resources
+        az resource list --resource-group rg-manuals-dev -o table
