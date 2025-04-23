@@ -1,4 +1,4 @@
-# ASP.NET Core Implementatie met CQRS en Minimal APIs
+# ASP.NET Core Implementatie met CQRS en Controllers
 
 ## Architectural Approach
 
@@ -6,12 +6,12 @@ Voor de ASP.NET Core backend zullen we de CQRS (Command Query Responsibility Seg
 
 ## Belangrijkste Features
 
-### Minimal APIs
-In plaats van traditionele controllers gebruiken we Minimal APIs voor eenvoudigere endpoints:
-- Minder boilerplate code
-- Directe integratie met dependency injection
-- Betere performance
-- Moderne C# features zoals record types
+### Controllers met MediatR
+In plaats van Minimal APIs gebruiken we traditionele controllers:
+- Betere organisatie van gerelateerde endpoints
+- Vertrouwde structuur die bekend is voor ASP.NET ontwikkelaars
+- Goede ondersteuning voor attributen zoals [Authorize]
+- Betere route-configuratie mogelijkheden
 
 ### Record Types voor DTOs
 We gebruiken C# record types voor DTOs:
@@ -53,7 +53,7 @@ AutoMapper zorgt voor:
 /src
   /backend
     /Manuals.API              # ASP.NET Core Web API project
-      /Endpoints              # Gegroepeerde Minimal API endpoints
+      /Controllers            # API controllers
       /Models                 # API models/DTOs als record types
       /Middleware             # Custom middleware zoals exception handling
     
@@ -87,48 +87,55 @@ AutoMapper zorgt voor:
         VectorSearchService.cs
 ```
 
-## Voorbeeld Minimal API Endpoints
+## Voorbeeld Controllers
 
 ```csharp
-// In Program.cs
-
-var app = builder.Build();
-
-// Global Exception Handling Middleware
-app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
-
-// Manuals endpoints
-app.MapGroup("/api/manuals")
-    .MapManualsEndpoints()
-    .WithTags("Manuals");
-
-app.Run();
-
-// In EndpointExtensions.cs
-public static class ManualsEndpoints
+// ManualsController.cs
+[ApiController]
+[Route("api/[controller]")]
+[Produces("application/json")]
+public class ManualsController : ControllerBase
 {
-    public static RouteGroupBuilder MapManualsEndpoints(this RouteGroupBuilder group)
+    private readonly IMediator _mediator;
+    private readonly ILogger<ManualsController> _logger;
+
+    public ManualsController(IMediator mediator, ILogger<ManualsController> logger)
     {
-        // Get manual by ID
-        group.MapGet("/{id}", async (int id, IMediator mediator) =>
+        _mediator = mediator;
+        _logger = logger;
+    }
+
+    [HttpGet("{id}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ManualDto>> GetById(int id)
+    {
+        var result = await _mediator.Send(new GetManualByIdQuery(id));
+        
+        if (result == null)
         {
-            var result = await mediator.Send(new GetManualByIdQuery(id));
-            return result != null ? Results.Ok(result) : Results.NotFound();
-        })
-        .WithName("GetManualById");
+            return NotFound();
+        }
         
-        // Create new manual
-        group.MapPost("/", async (CreateManualCommand command, IMediator mediator) =>
-        {
-            var id = await mediator.Send(command);
-            return Results.CreatedAtRoute("GetManualById", new { id });
-        });
+        return Ok(result);
+    }
+
+    [HttpPost]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<int>> Create([FromForm] CreateManualCommand command)
+    {
+        var id = await _mediator.Send(command);
         
-        // Search manuals
-        group.MapGet("/search", async (string query, IMediator mediator) =>
-            await mediator.Send(new SearchManualsQuery(query)));
-        
-        return group;
+        return CreatedAtAction(nameof(GetById), new { id }, id);
+    }
+
+    [HttpGet("search")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<object>> Search([FromQuery] string query)
+    {
+        // In een echte implementatie zou dit een SearchManuals query aanroepen
+        return Ok(new { Query = query, Results = Array.Empty<object>() });
     }
 }
 ```
@@ -197,17 +204,29 @@ public class GlobalExceptionHandlingMiddleware
 ## Voorbeeld DTOs als Record Types
 
 ```csharp
-// In Manuals.API/Models
-public record ManualDto(int Id, string Title, string Brand, string ModelNumber);
+// In Manuals.Application.Queries
+public record ManualDto
+{
+    public int Id { get; init; }
+    public string Title { get; init; } = string.Empty;
+    public string Brand { get; init; } = string.Empty;
+    public string ModelNumber { get; init; } = string.Empty;
+    public string FileName { get; init; } = string.Empty;
+    public DateTime UploadedAt { get; init; }
+    public long FileSize { get; init; }
+    public int? DeviceId { get; init; }
+    public string? DeviceName { get; init; }
+}
 
-public record CreateManualCommand(string Title, string Brand, string ModelNumber, 
-    IFormFile PdfFile) : IRequest<int>;
-
-public record SearchManualsQuery(string Query) : IRequest<SearchResultsDto>;
-
-public record SearchResultsDto(IEnumerable<SearchResultDto> Results, int TotalCount);
-
-public record SearchResultDto(int Id, string Title, string Excerpt, float Score);
+// In Manuals.Application.Commands
+public record CreateManualCommand : IRequest<int>
+{
+    public string Title { get; init; } = string.Empty;
+    public string Brand { get; init; } = string.Empty;
+    public string ModelNumber { get; init; } = string.Empty;
+    public IFormFile PdfFile { get; init; } = null!;
+    public int? DeviceId { get; init; }
+}
 ```
 
 ## Voorbeeld Command Handler
@@ -218,27 +237,43 @@ public class CreateManualCommandHandler : IRequestHandler<CreateManualCommand, i
     private readonly IApplicationDbContext _context;
     private readonly IPdfExtractionService _pdfService;
     private readonly IMapper _mapper;
+    private readonly ILogger<CreateManualCommandHandler> _logger;
 
     public CreateManualCommandHandler(
         IApplicationDbContext context, 
         IPdfExtractionService pdfService,
-        IMapper mapper)
+        IMapper mapper,
+        ILogger<CreateManualCommandHandler> logger)
     {
         _context = context;
         _pdfService = pdfService;
         _mapper = mapper;
+        _logger = logger;
     }
 
     public async Task<int> Handle(CreateManualCommand command, CancellationToken cancellationToken)
     {
-        // Validatie gebeurt al via FluentValidation behavior
+        _logger.LogInformation("Handleiding aanmaken: {Title}", command.Title);
         
-        var manual = _mapper.Map<Manual>(command);
+        // Validatie gebeurt al via FluentValidation behavior
+        var manual = new Manual
+        {
+            Title = command.Title,
+            Brand = command.Brand,
+            ModelNumber = command.ModelNumber,
+            FileName = command.PdfFile.FileName,
+            ContentType = command.PdfFile.ContentType,
+            FileSize = command.PdfFile.Length,
+            UploadedAt = DateTime.UtcNow,
+            DeviceId = command.DeviceId
+        };
         
         _context.Manuals.Add(manual);
         await _context.SaveChangesAsync(cancellationToken);
         
-        // Process PDF and extract text
+        _logger.LogInformation("Handleiding aangemaakt met ID: {ManualId}", manual.Id);
+        
+        // Process PDF en extraheer tekst
         using (var stream = command.PdfFile.OpenReadStream())
         {
             await _pdfService.ProcessManualPdfAsync(
@@ -250,36 +285,12 @@ public class CreateManualCommandHandler : IRequestHandler<CreateManualCommand, i
         return manual.Id;
     }
 }
-
-// FluentValidation voor record command
-public class CreateManualCommandValidator : AbstractValidator<CreateManualCommand>
-{
-    public CreateManualCommandValidator()
-    {
-        RuleFor(x => x.Title)
-            .NotEmpty()
-            .MaximumLength(200);
-            
-        RuleFor(x => x.Brand)
-            .NotEmpty()
-            .MaximumLength(100);
-            
-        RuleFor(x => x.ModelNumber)
-            .NotEmpty()
-            .MaximumLength(50);
-            
-        RuleFor(x => x.PdfFile)
-            .NotNull()
-            .Must(x => x != null && x.ContentType == "application/pdf")
-            .WithMessage("File must be a PDF document");
-    }
-}
 ```
 
 ## Voordelen van deze Architectuur
 
-1. **Moderne, Compacte Code**
-   - Minimal APIs reduceren boilerplate code
+1. **Gestructureerde Code**
+   - Controllers bieden een traditionele, georganiseerde benadering
    - Record types zorgen voor immutable DTOs met minder code
    - Verbeterde leesbaarheid en onderhoudbaarheid
 
@@ -289,7 +300,7 @@ public class CreateManualCommandValidator : AbstractValidator<CreateManualComman
    - Betere gebruikerservaring bij fouten
 
 3. **Separation of Concerns**
-   - Endpoints delegeren naar mediator
+   - Controllers delegeren naar mediator
    - Business logic zit in command/query handlers
    - Validatie is gescheiden van business logic
 
@@ -303,9 +314,9 @@ public class CreateManualCommandValidator : AbstractValidator<CreateManualComman
    - Gemakkelijk uit te breiden met nieuwe functionaliteit
    - Cross-cutting concerns kunnen worden toegevoegd via behaviors
 
-6. **Performance**
-   - Minimal APIs hebben minder overhead dan controllers
-   - Records zijn geoptimaliseerd voor value-based operaties
-   - Queries kunnen worden geoptimaliseerd voor leesoperaties
+6. **Bekendheid en Adoptie**
+   - Vertrouwde controller-gebaseerde architectuur
+   - Gemakkelijker voor nieuwe ontwikkelaars om te begrijpen
+   - Goede integratie met bestaande ASP.NET Core features
 
-Dit patroon zorgt voor een moderne, goed schaalbare en onderhoudbare ASP.NET Core applicatie die gemakkelijk kan worden uitgebreid naarmate de requirements groeien.
+Dit patroon zorgt voor een goed gestructureerde, schaalbare en onderhoudbare ASP.NET Core applicatie die gemakkelijk kan worden uitgebreid naarmate de requirements groeien.

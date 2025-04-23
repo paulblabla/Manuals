@@ -25,7 +25,7 @@ Het project gebruikt een schone architectuur met Domain-Driven Design principes:
 
 ## Technologie Stack
 
-- **Backend**: ASP.NET Core 8.0 met Minimal APIs, MediatR, FluentValidation, AutoMapper
+- **Backend**: ASP.NET Core 8.0 met Controllers, MediatR, FluentValidation, AutoMapper
 - **Frontend**: React met TypeScript, Redux, Tailwind CSS
 - **Database**: Azure SQL Database
 - **Storage**: Azure Blob Storage voor PDF opslag

@@ -1,4 +1,3 @@
-using Manuals.API.Endpoints;
 using Manuals.API.Middleware;
 using Manuals.Application;
 using Manuals.Infrastructure;
@@ -18,6 +17,15 @@ builder.Services.AddApplicationInsightsTelemetry(options =>
     options.EnableQuickPulseMetricStream = true;
     options.EnablePerformanceCounterCollectionModule = false;
 });
+
+// Controllers
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
 
 // CORS
 builder.Services.AddCors(options =>
@@ -48,14 +56,6 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// JSON serialization options
-builder.Services.ConfigureHttpJsonOptions(options =>
-{
-    options.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
-    options.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-    options.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
-});
-
 // Project layers
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -83,7 +83,8 @@ app.UseCors("AllowFrontend");
 // Global exception handling middleware
 app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 
-// Map endpoints
-app.MapManualsEndpoints();
+app.UseAuthorization();
+
+app.MapControllers();
 
 app.Run();
