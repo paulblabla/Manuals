@@ -46,11 +46,34 @@
 
 ## Branching Strategie & Deployment Workflow
 
+> **⚠️ BELANGRIJK: Alle ontwikkeling MOET plaatsvinden op feature branches! Directe commits op de main branch zijn niet toegestaan.**
+
 ### Branching Strategie
-- `main` branch: bevat productie-waardige code
-- Feature branches: `feature/naam-van-feature` voor nieuwe ontwikkelingen
-- Bugfix branches: `bugfix/naam-van-bugfix` voor probleemoplossing
-- Hotfix branches: `hotfix/naam-van-hotfix` voor urgente fixes
+- `main` branch: bevat productie-waardige code (NOOIT direct op deze branch werken)
+- Feature branches: `feature/naam-van-feature` voor nieuwe ontwikkelingen (bijv. `feature/initial-setup`, `feature/pdf-upload`)
+- Bugfix branches: `bugfix/naam-van-bugfix` voor probleemoplossing (bijv. `bugfix/invalid-pdf-handling`)
+- Hotfix branches: `hotfix/naam-van-hotfix` voor urgente fixes (bijv. `hotfix/security-vulnerability`)
+
+### Verplichte Git Workflow
+1. **Creëer een feature branch:**
+   ```
+   git checkout main
+   git pull
+   git checkout -b feature/mijn-nieuwe-feature
+   ```
+
+2. **Maak wijzigingen op je feature branch:**
+   - Commit regelmatig met duidelijke commit messages
+   - Push regelmatig naar origin om werk te bewaren
+
+3. **Maak een Pull Request aan naar main:**
+   - Schrijf een duidelijke beschrijving van de wijzigingen
+   - Voer self-review uit
+   - Wacht op automated checks
+
+4. **Merge naar main:**
+   - Na goedkeuring merge je de PR naar main
+   - NOOIT direct naar main pushen
 
 ### Pull Request (PR) Workflow voor Single Developer
 1. Ontwikkeling vindt plaats op feature branches
@@ -193,3 +216,17 @@
 3. Database schema uitwerken
 4. CI/CD workflows configureren
 5. Eerste API endpoints implementeren
+
+## Checklist voor Ontwikkelaars
+
+Voor je begint met coderen:
+- [ ] Werk altijd op een feature branch (NOOIT direct op main)
+- [ ] Zorg dat je branch up-to-date is met main
+- [ ] Zorg voor duidelijke commit messages
+- [ ] Volg de naamgevingsconventies voor branches
+
+Voor je een PR aanmaakt:
+- [ ] Lokale tests uitvoeren en laten slagen
+- [ ] Code formatteren volgens projectstandaarden
+- [ ] Documentatie bijwerken waar nodig
+- [ ] PR beschrijving volledig invullen

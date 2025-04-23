@@ -4,6 +4,8 @@
 
 Voor het Manuals project hanteren we een monorepo-benadering (alles in één repository), maar met gerichte CI/CD workflows om efficiëntie te waarborgen.
 
+> **⚠️ BELANGRIJK: Alle ontwikkeling MOET plaatsvinden volgens de branch strategie beschreven in [branching_workflow.md](./branching_workflow.md). Nooit direct op de main branch werken!**
+
 ## Repository Structuur
 
 ```
@@ -13,6 +15,8 @@ Voor het Manuals project hanteren we een monorepo-benadering (alles in één rep
     aspnet_core_implementation.md
     application_insights_cost_management.md
     repository_structure.md
+    branching_workflow.md        # Gedetailleerde Git workflow
+    git_cheatsheet.md            # Handige Git commando's
     ...
   /src
     /Manuals.API        # ASP.NET Core backend
@@ -41,7 +45,19 @@ Voor het Manuals project hanteren we een monorepo-benadering (alles in één rep
       frontend.yml      # Alleen voor frontend wijzigingen
       backend.yml       # Alleen voor backend wijzigingen
       infrastructure.yml # Alleen voor infrastructure wijzigingen
+      branch_enforce.yml # Controleer op juiste branch naamgeving
 ```
+
+## Branching Strategie
+
+We hanteren een strikte branching strategie:
+
+1. **Main Branch**: Bevat altijd productie-waardige code
+2. **Feature Branches**: Voor alle nieuwe ontwikkelingen (`feature/naam-van-feature`)
+3. **Bugfix Branches**: Voor het oplossen van bugs (`bugfix/naam-van-bugfix`)
+4. **Hotfix Branches**: Voor urgente fixes (`hotfix/naam-van-hotfix`)
+
+Alle wijzigingen worden via Pull Requests geïntegreerd in de main branch, **nooit** via directe commits. Zie [branching_workflow.md](./branching_workflow.md) voor volledige details.
 
 ## GitHub Actions Workflows met Path Filters
 
@@ -197,6 +213,48 @@ jobs:
           output_location: ""
 ```
 
+### 4. Branch Naming Enforcement (.github/workflows/branch_enforce.yml)
+
+```yaml
+name: Branch Naming Convention Check
+
+on:
+  push:
+    branches-ignore:
+      - main
+
+jobs:
+  check-branch-name:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check branch name
+        run: |
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          echo "Branch name: $BRANCH_NAME"
+          
+          if [[ ! "$BRANCH_NAME" =~ ^(feature|bugfix|hotfix|release)/[a-z0-9-]+$ ]]; then
+            echo "ERROR: Branch naam voldoet niet aan de naamgevingsconventie."
+            echo "Branch namen moeten beginnen met 'feature/', 'bugfix/', 'hotfix/' of 'release/' gevolgd door een beschrijvende naam met kleine letters, cijfers en streepjes."
+            echo "Bijvoorbeeld: feature/pdf-upload, bugfix/login-error, hotfix/security-fix"
+            exit 1
+          fi
+          
+          echo "Branch naam voldoet aan de conventie!"
+```
+
+## Volledige CI/CD Pijplijn
+
+1. Ontwikkelaar maakt feature branch aan
+2. Code wordt ontwikkeld en lokaal getest
+3. PR wordt aangemaakt naar main
+4. Automatische checks:
+   - Branch naming convention
+   - Build en tests
+   - Code quality checks
+5. Na goedkeuring wordt PR gemerged
+6. Path-specifieke workflows worden getriggerd
+7. Code wordt automatisch gedeployed naar ontwikkelomgeving
+
 ## Voordelen van deze Structuur
 
 1. **Efficiëntie** - Alleen gewijzigde componenten worden gebouwd en gedeployed
@@ -204,5 +262,18 @@ jobs:
 3. **Isolatie** - Wijzigingen aan één component beïnvloeden niet de deployment van andere componenten
 4. **Overzicht** - Duidelijke organisatie van code en resources
 5. **Schaalbaarheid** - Gemakkelijk uitbreidbaar naar meer componenten indien nodig
+6. **Kwaliteitscontrole** - Geautomatiseerde controle van branch naming en code kwaliteit
+7. **Veiligheidsniveau** - Bescherming van de main branch tegen directe wijzigingen
 
-Deze structuur combineert de eenvoud van een monorepo met de efficiëntie van gerichte workflows die alleen triggeren wanneer relevante bestanden worden gewijzigd.
+## Optimale Ontwikkelworkflow
+
+1. **Start**: Begin altijd met een up-to-date feature branch
+2. **Ontwikkel**: Maak kleinere, frequente commits met duidelijke messages
+3. **Test**: Test lokaal voordat je wijzigingen pusht
+4. **Update**: Houd je branch up-to-date met main om merge conflicts te minimaliseren
+5. **PR**: Creëer een PR met duidelijke beschrijving van wijzigingen
+6. **Review**: Voer een self-review uit en wacht op automatische checks
+7. **Merge**: Na goedkeuring kan de PR worden gemerged
+8. **Deployment**: Automatische deployment via de juiste workflow
+
+Deze structuur combineert de eenvoud van een monorepo met de efficiëntie van gerichte workflows die alleen triggeren wanneer relevante bestanden worden gewijzigd, terwijl de kwaliteit van de code wordt bewaakt via een strikte branching strategie.
