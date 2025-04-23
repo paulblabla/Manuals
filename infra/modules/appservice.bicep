@@ -1,8 +1,8 @@
 @description('App Service voor Manuals API')
-@param('location') location string = resourceGroup().location
-@param('environmentName') environmentName string
-@param('appServicePlanName') appServicePlanName string = 'asp-manuals-${environmentName}'
-@param('appName') appName string = 'app-manuals-api-${environmentName}'
+param location string = resourceGroup().location
+param environmentName string
+param appServicePlanName string = 'asp-manuals-${environmentName}'
+param appName string = 'app-manuals-api-${environmentName}'
 
 var tags = {
   Environment: environmentName
@@ -63,18 +63,6 @@ resource webApp 'Microsoft.Web/sites@2022-03-01' = {
   }
 }
 
-// Deployment slot voor staging
-resource stagingSlot 'Microsoft.Web/sites/slots@2022-03-01' = {
-  parent: webApp
-  name: 'staging'
-  location: location
-  tags: tags
-  properties: {
-    serverFarmId: appServicePlan.id
-  }
-}
-
 output appServiceName string = webApp.name
 output appServiceId string = webApp.id
 output appServiceHostName string = webApp.properties.defaultHostName
-output stagingSlotName string = stagingSlot.name

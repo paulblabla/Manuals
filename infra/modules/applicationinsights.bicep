@@ -1,7 +1,7 @@
 @description('Application Insights configuratie voor Manuals project')
-@param('location') location string = resourceGroup().location
-@param('environmentName') environmentName string
-@param('dailyQuotaInGB') dailyQuotaInGB int = 4  // Net onder de 5GB limiet
+param location string = resourceGroup().location
+param environmentName string
+param dailyQuotaInGB int = 4  // Net onder de 5GB limiet
 
 var tags = {
   Environment: environmentName

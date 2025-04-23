@@ -1,10 +1,10 @@
 @description('Azure SQL Database voor Manuals project')
-@param('location') location string = resourceGroup().location
-@param('environmentName') environmentName string
+param location string = resourceGroup().location
+param environmentName string
 @secure()
-@param('adminUsername') adminUsername string
+param adminUsername string
 @secure()
-@param('adminPassword') adminPassword string
+param adminPassword string
 
 var tags = {
   Environment: environmentName

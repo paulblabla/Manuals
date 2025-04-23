@@ -1,7 +1,7 @@
 @description('Static Web App voor Manuals Frontend')
-@param('location') location string = resourceGroup().location
-@param('environmentName') environmentName string
-@param('appName') appName string = 'stapp-manuals-${environmentName}'
+param location string = resourceGroup().location
+param environmentName string
+param appName string = 'stapp-manuals-${environmentName}'
 
 var tags = {
   Environment: environmentName

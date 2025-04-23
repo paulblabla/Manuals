@@ -1,12 +1,12 @@
 @description('Hoofd Bicep template voor Manuals project')
-@param('location') location string = resourceGroup().location
-@param('environmentName') environmentName string = 'dev'
+param location string = resourceGroup().location
+param environmentName string
 
 // Parameters voor gevoelige gegevens
 @secure()
-@param('sqlAdminUsername') sqlAdminUsername string
+param sqlAdminUsername string
 @secure()
-@param('sqlAdminPassword') sqlAdminPassword string
+param sqlAdminPassword string
 
 // Modules importeren
 module appInsights 'modules/applicationinsights.bicep' = {
