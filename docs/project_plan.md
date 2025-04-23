@@ -22,7 +22,7 @@
 - Vite voor packaging
 
 ### Backend
-- ASP.NET Core 8.0 Web API met Minimal APIs
+- ASP.NET Core 8.0 Web API met Controllers
 - C# als programmeertaal met gebruik van record types
 - Entity Framework Core voor data access
 - MediatR voor implementatie van Mediator pattern

@@ -1,0 +1,178 @@
+name: Backend CI/CD Pipeline
+
+on:
+  # Triggeren bij push naar main branch, maar alleen als er wijzigingen zijn in backend code
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/backend/**'
+      - '.github/workflows/backend-pipeline.yml'
+  
+  # Triggeren bij PR naar main branch, maar alleen als er wijzigingen zijn in backend code
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/backend/**'
+  
+  # Handmatige trigger
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - test
+          - production
+
+# Rechten die de workflow nodig heeft
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+  id-token: write  # Nodig voor OIDC authenticatie met Azure
+
+# Variabelen die in de hele workflow gebruikt kunnen worden
+env:
+  DOTNET_VERSION: '8.0.x'
+  SOLUTION_PATH: 'Manuals.sln'
+  API_PROJECT_PATH: 'src/backend/Manuals.API/Manuals.API.csproj'
+  TEST_PATH: 'tests/backend/'
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'development' }}
+    
+    steps:
+    # Repository uitchecken
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    
+    # .NET setup
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    # NuGet packages herstellen
+    - name: Restore dependencies
+      run: dotnet restore ${{ env.SOLUTION_PATH }}
+    
+    # Solution bouwen
+    - name: Build solution
+      run: dotnet build ${{ env.SOLUTION_PATH }} --configuration Release --no-restore
+    
+    # Tests uitvoeren
+    - name: Run tests
+      run: dotnet test ${{ env.TEST_PATH }} --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
+    
+    # Code coverage rapportage
+    - name: Generate code coverage report
+      uses: irongut/CodeCoverageSummary@v1.3.0
+      with:
+        filename: coverage/**/coverage.cobertura.xml
+        badge: true
+        format: markdown
+        output: both
+    
+    # Code coverage samenvatting toevoegen aan Pull Request
+    - name: Add coverage PR comment
+      uses: marocchino/sticky-pull-request-comment@v2
+      if: github.event_name == 'pull_request'
+      with:
+        header: test-coverage
+        message: |
+          ## Code Coverage Report
+          ${{ steps.coverage.outputs.report }}
+    
+    # Build artifact publiceren
+    - name: Publish API project
+      if: success() && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
+      run: dotnet publish ${{ env.API_PROJECT_PATH }} -c Release -o publish
+    
+    # Build artifact uploaden
+    - name: Upload build artifact
+      if: success() && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
+      uses: actions/upload-artifact@v3
+      with:
+        name: backend-build
+        path: publish/
+        retention-days: 7
+
+  deploy:
+    name: Deploy to Azure
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: success() && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') # Alleen deployen na succesvolle build en test, en alleen vanaf main branch of handmatige trigger
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'development' }}
+    
+    steps:
+    # Build artifact downloaden
+    - name: Download build artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: backend-build
+        path: publish
+    
+    # Bepaal welke app name we gebruiken op basis van environment
+    - name: Set environment variables
+      id: env_vars
+      run: |
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          ENV="${{ inputs.environment }}"
+        else
+          ENV="development"
+        fi
+        
+        # App naam op basis van environment
+        if [ "$ENV" == "development" ]; then
+          APP_NAME="app-manuals-api-dev"
+        elif [ "$ENV" == "test" ]; then
+          APP_NAME="app-manuals-api-test"
+        elif [ "$ENV" == "production" ]; then
+          APP_NAME="app-manuals-api-prod"
+        fi
+        
+        echo "environment=$ENV" >> $GITHUB_OUTPUT
+        echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
+    
+    # Azure login met dezelfde OIDC methode als infrastructure workflow
+    - name: Azure login
+      uses: azure/login@v1
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    
+    # Deploy naar Azure Web App
+    - name: Deploy to Azure Web App
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: ${{ steps.env_vars.outputs.app_name }}
+        slot-name: 'production'
+        package: publish
+    
+    # Post-deployment status melding
+    - name: Post deployment success message
+      run: |
+        echo "Backend successfully deployed to ${{ steps.env_vars.outputs.app_name }} (${{ steps.env_vars.outputs.environment }})"
+
+  notify:
+    name: Notify deployment result
+    runs-on: ubuntu-latest
+    needs: [build-and-test, deploy]
+    if: always() && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
+    
+    steps:
+    # Notificatie sturen over deployment status
+    - name: Send notification
+      run: |
+        if [ "${{ needs.deploy.result }}" == "success" ]; then
+          echo "✅ Backend deployment succeeded!"
+        else
+          echo "❌ Backend deployment failed or was skipped."
+        fi

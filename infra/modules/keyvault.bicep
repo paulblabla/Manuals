@@ -11,7 +11,7 @@ var tags = {
 
 var keyVaultName = 'kv-manuals-${environmentName}'
 
-resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' = {
+resource keyVault 'Microsoft.KeyVault/vaults@2024-12-01-preview' = {
   name: keyVaultName
   location: location
   tags: tags
@@ -31,7 +31,8 @@ resource keyVault 'Microsoft.KeyVault/vaults@2022-07-01' = {
       }
     ] : []
     sku: {
-      name: 'Standard'
+      family: 'A'
+      name: 'standard'
     }
     networkAcls: {
       defaultAction: 'Allow'
