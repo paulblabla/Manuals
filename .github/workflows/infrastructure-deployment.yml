@@ -67,13 +67,6 @@ jobs:
         echo "environment=$ENV_NAME" >> $GITHUB_OUTPUT
         echo "param_file=$PARAM_FILE" >> $GITHUB_OUTPUT
 
-    # Haal de resourcegroep naam op uit parameters bestand
-    - name: Get Resource Group Name
-      id: rg_name
-      run: |
-        RG_NAME=$(jq -r '.parameters.resourceGroupName.value' infra/${{ steps.env_vars.outputs.param_file }})
-        echo "resource_group=$RG_NAME" >> $GITHUB_OUTPUT
-
     # Controleer/Lint Bicep bestanden
     - name: Lint Bicep Files
       run: |
@@ -88,20 +81,10 @@ jobs:
           --template-file infra/main.bicep \
           --parameters infra/${{ steps.env_vars.outputs.param_file }}
 
-    # Deploy infrastructuur
+    # Deploy alles in één keer op subscription niveau
     - name: Deploy Infrastructure
       run: |
-        # Maak resourcegroep aan als deze niet bestaat
-        az group create --name ${{ steps.rg_name.outputs.resource_group }} --location westeurope
-        
-        # Deploy infrastructuur
-        az deployment group create \
-          --resource-group ${{ steps.rg_name.outputs.resource_group }} \
+        az deployment sub create \
+          --location westeurope \
           --template-file infra/main.bicep \
           --parameters infra/${{ steps.env_vars.outputs.param_file }}
-
-    # Basis validatie na deployment
-    - name: Basic Infrastructure Validation
-      run: |
-        # Controleer de gemaakte resources
-        az resource list --resource-group ${{ steps.rg_name.outputs.resource_group }} -o table

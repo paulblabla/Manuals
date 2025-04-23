@@ -8,9 +8,6 @@
     "location": {
       "value": "westeurope"
     },
-    "resourceGroupName": {
-      "value": "rg-manuals-test"
-    },
     "sqlAdminUsername": {
       "value": "manuals_admin"
     },
