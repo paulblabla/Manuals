@@ -21,8 +21,6 @@ var tags = {
 }
 
 // Genereer een sterk wachtwoord voor SQL Server
-var sqlPasswordLength = 24
-var chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()_+-='
 var sqlPassword = '${take(uniqueString(subscription().id, resourceGroup.id, deployment().name), 8)}${take(uniqueString(resourceGroup.name, subscription().subscriptionId), 8)}Aa1!'
 
 // Resource group aanmaken
@@ -117,7 +115,3 @@ output staticWebAppName string = staticWebApp.outputs.staticWebAppName
 output resourceGroupName string = resourceGroup.name
 output keyVaultName string = keyVault.outputs.keyVaultName
 output keyVaultUri string = keyVault.outputs.keyVaultUri
-
-// Bij eerste deployment, toon SQL wachtwoord (alleen in logs)
-@description('SQL Server Admin wachtwoord - ALLEEN ZICHTBAAR BIJ EERSTE DEPLOYMENT')
-output sqlServerPassword string = sqlPassword
