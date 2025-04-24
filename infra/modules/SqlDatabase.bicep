@@ -1,46 +1,18 @@
 @description('Azure SQL Database voor Manuals project')
 param location string = resourceGroup().location
-param environmentName string
-@secure()
-param adminUsername string
-@secure()
-param adminPassword string
-param adminGroupName string
-param adminGroupObjectId string
+param sqlServerName string
+param tags object = {}
 
-var tags = {
-  Environment: environmentName
-  Project: 'Manuals'
-  ManagedBy: 'Bicep'
-}
+// Database naam
+param databaseName string = 'manuals-db'
 
-resource sqlServer 'Microsoft.Sql/servers@2022-05-01-preview' = {
-  name: 'sqlserver-manuals-${environmentName}'
-  location: location
-  tags: tags
-  properties: {
-    administratorLogin: adminUsername
-    administratorLoginPassword: adminPassword
-    publicNetworkAccess: 'Enabled'
-    
-    // Minimale TLS-versie voor beveiliging
-    minimalTlsVersion: '1.2'
-    
-    // Azure AD Groep als administrator
-    administrators: {
-      administratorType: 'ActiveDirectory'
-      principalType: 'Group'
-      login: adminGroupName
-      sid: adminGroupObjectId
-      tenantId: subscription().tenantId
-      azureADOnlyAuthentication: false
-    }
-  }
+resource sqlServer 'Microsoft.Sql/servers@2022-05-01-preview' existing = {
+  name: sqlServerName
 }
 
 resource sqlDatabase 'Microsoft.Sql/servers/databases@2022-05-01-preview' = {
   parent: sqlServer
-  name: 'manuals-db'
+  name: databaseName
   location: location
   tags: tags
   sku: {
@@ -52,16 +24,5 @@ resource sqlDatabase 'Microsoft.Sql/servers/databases@2022-05-01-preview' = {
   }
 }
 
-// Firewall regel om Azure services toe te staan
-resource sqlServerFirewallRule 'Microsoft.Sql/servers/firewallRules@2022-05-01-preview' = {
-  parent: sqlServer
-  name: 'AllowAzureServices'
-  properties: {
-    startIpAddress: '0.0.0.0'
-    endIpAddress: '0.0.0.0'
-  }
-}
-
-output sqlServerName string = sqlServer.name
 output sqlDatabaseName string = sqlDatabase.name
-output sqlServerFQDN string = sqlServer.properties.fullyQualifiedDomainName
+output sqlDatabaseId string = sqlDatabase.id

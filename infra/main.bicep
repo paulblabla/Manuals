@@ -40,7 +40,7 @@ module keyVault 'modules/KeyVault.bicep' = {
 }
 
 // SQL wachtwoord beheren (ophalen of genereren)
-module sqlPassword 'modules/SqlPasswordManagement.bicep' = {
+module sqlPassword 'modules/SqlServerPasswordManagement.bicep' = {
   name: 'sqlPasswordManagement'
   scope: resourceGroup
   params: {
@@ -48,9 +48,6 @@ module sqlPassword 'modules/SqlPasswordManagement.bicep' = {
     secretName: 'sqlAdminPassword'
     location: location
   }
-  dependsOn: [
-    keyVault
-  ]
 }
 
 // Modules importeren
@@ -72,17 +69,32 @@ module storage 'modules/Storage.bicep' = {
   }
 }
 
-// Database module deployen 
-module database 'modules/SqlDatabase.bicep' = {
-  name: 'databaseDeployment'
+// SQL Server module deployen
+module sqlServer 'modules/SqlServer.bicep' = {
+  name: 'sqlServerDeployment'
   scope: resourceGroup
   params: {
     location: sqlLocation
     environmentName: environmentName
     adminUsername: sqlAdminUsername
-    adminPassword: sqlPassword.outputs.sqlPassword
+    keyVaultName: keyVault.outputs.keyVaultName
+    secretName: 'sqlAdminPassword'
     adminGroupName: sqlAdminGroupName
     adminGroupObjectId: sqlAdminGroupObjectId
+  }
+  dependsOn:[
+    sqlPassword
+  ]
+}
+
+// SQL Database module deployen
+module sqlDatabase 'modules/SqlDatabase.bicep' = {
+  name: 'sqlDatabaseDeployment'
+  scope: resourceGroup
+  params: {
+    location: sqlLocation
+    sqlServerName: sqlServer.outputs.sqlServerName
+    tags: tags
   }
 }
 
@@ -93,23 +105,17 @@ module appService 'modules/AppService.bicep' = {
   params: {
     location: location
     environmentName: environmentName
-    sqlServerName: database.outputs.sqlServerName
-    sqlDatabaseName: database.outputs.sqlDatabaseName
   }
 }
 
 // Role assignment voor App Service Managed Identity naar SQL
-module sqlRoleAssignment 'modules/SqlRoleAssignment.bicep' = {
+module sqlRoleAssignment 'modules/SqlServerRoleAssignment.bicep' = {
   name: 'sqlRoleAssignmentDeployment'
   scope: resourceGroup
   params: {
-    sqlServerName: database.outputs.sqlServerName
+    sqlServerName: sqlServer.outputs.sqlServerName
     principalId: appService.outputs.appServicePrincipalId
   }
-  dependsOn: [
-    database
-    appService
-  ]
 }
 
 // SQL User aanmaken voor de Managed Identity
@@ -118,16 +124,14 @@ module sqlDbUser 'modules/SqlDatabaseUser.bicep' = {
   scope: resourceGroup
   params: {
     location: location
-    sqlServerName: database.outputs.sqlServerName
-    sqlDatabaseName: database.outputs.sqlDatabaseName
+    sqlServerName: sqlServer.outputs.sqlServerName
+    sqlDatabaseName: sqlDatabase.outputs.sqlDatabaseName
     sqlAdminUsername: sqlAdminUsername
-    sqlAdminPassword: sqlPassword.outputs.sqlPassword
+    keyVaultName: keyVault.outputs.keyVaultName
+    secretName: 'sqlAdminPassword'
     appServiceName: appService.outputs.appServiceName
     appServicePrincipalId: appService.outputs.appServicePrincipalId
   }
-  dependsOn: [
-    sqlRoleAssignment
-  ]
 }
 
 module staticWebApp 'modules/StaticWebApp.bicep' = {
@@ -144,23 +148,19 @@ module appInsightsConfig 'modules/AppServiceConfig.bicep' = {
   name: 'appInsightsConfigDeployment'
   scope: resourceGroup
   params: {
+    environmentName: environmentName
     appServiceName: appService.outputs.appServiceName
     appInsightsConnectionString: appInsights.outputs.appInsightsConnectionString
   }
-  dependsOn: [
-    appService
-    appInsights
-  ]
 }
 
 // Outputs verzamelen voor gebruik in andere scripts/configuraties
 output appInsightsInstrumentationKey string = appInsights.outputs.appInsightsInstrumentationKey
 output storageAccountName string = storage.outputs.storageAccountName
-output sqlServerName string = database.outputs.sqlServerName
-output sqlDatabaseName string = database.outputs.sqlDatabaseName
+output sqlServerName string = sqlServer.outputs.sqlServerName
+output sqlDatabaseName string = sqlDatabase.outputs.sqlDatabaseName
 output appServiceName string = appService.outputs.appServiceName
 output staticWebAppName string = staticWebApp.outputs.staticWebAppName
 output resourceGroupName string = resourceGroup.name
 output keyVaultName string = keyVault.outputs.keyVaultName
 output keyVaultUri string = keyVault.outputs.keyVaultUri
-output isNewSqlPassword bool = sqlPassword.outputs.isNewPassword

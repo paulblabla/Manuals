@@ -3,9 +3,6 @@ param sqlServerName string
 param principalId string
 param principalType string = 'ServicePrincipal'
 
-// Resource ID van de SQL Server
-var sqlServerId = resourceId('Microsoft.Sql/servers', sqlServerName)
-
 // SQL Server resource ophalen
 resource sqlServer 'Microsoft.Sql/servers@2022-05-01-preview' existing = {
   name: sqlServerName

@@ -3,10 +3,6 @@ param keyVaultName string
 param secretName string = 'sqlAdminPassword'
 param location string = resourceGroup().location
 
-resource keyVaultResource 'Microsoft.KeyVault/vaults@2021-11-01-preview' existing = {
-  name: keyVaultName
-}
-
 resource checkPasswordScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
   name: 'checkSqlPassword-${uniqueString(resourceGroup().id)}'
   location: location
@@ -65,7 +61,3 @@ resource checkPasswordScript 'Microsoft.Resources/deploymentScripts@2020-10-01' 
     cleanupPreference: 'OnSuccess'
   }
 }
-
-// Verwijderd @secure() decorator omdat deze niet wordt ondersteund voor outputs
-output sqlPassword string = json(checkPasswordScript.properties.outputs).password
-output isNewPassword bool = json(checkPasswordScript.properties.outputs).isNew

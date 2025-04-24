@@ -20,7 +20,7 @@ resource appSettings 'Microsoft.Web/sites/config@2022-03-01' = {
     ASPNETCORE_ENVIRONMENT: environmentName
     
     // Application Insights settings
-    APPLICATIONINSIGHTS_CONNECTION_STRING: !empty(appInsightsConnectionString) ? appInsightsConnectionString : null
+    APPLICATIONINSIGHTS_CONNECTION_STRING: appInsightsConnectionString
     ApplicationInsightsAgent_EXTENSION_VERSION: '~3'
     
     // App specifieke settings
