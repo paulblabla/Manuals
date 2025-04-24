@@ -1,0 +1,1247 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.34.44.8038",
+      "templateHash": "191736952448719707"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "westeurope",
+      "metadata": {
+        "description": "Hoofd Bicep template voor Manuals project"
+      }
+    },
+    "sqlLocation": {
+      "type": "string",
+      "defaultValue": "westeurope"
+    },
+    "environmentName": {
+      "type": "string"
+    },
+    "sqlAdminUsername": {
+      "type": "string"
+    },
+    "sqlAdminGroupName": {
+      "type": "string"
+    },
+    "sqlAdminGroupObjectId": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "resourceGroupName": "[format('rg-manuals-{0}', parameters('environmentName'))]",
+    "tags": {
+      "Environment": "[parameters('environmentName')]",
+      "Project": "Manuals",
+      "ManagedBy": "Bicep"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2021-04-01",
+      "name": "[variables('resourceGroupName')]",
+      "location": "[parameters('location')]",
+      "tags": "[variables('tags')]"
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "keyVaultDeployment",
+      "resourceGroup": "[variables('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "environmentName": {
+            "value": "[parameters('environmentName')]"
+          },
+          "currentUserObjectId": {
+            "value": "[parameters('sqlAdminGroupObjectId')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.34.44.8038",
+              "templateHash": "18187873972944045327"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Key Vault voor het opslaan van secrets"
+              }
+            },
+            "environmentName": {
+              "type": "string"
+            },
+            "currentUserObjectId": {
+              "type": "string",
+              "defaultValue": ""
+            }
+          },
+          "variables": {
+            "tags": {
+              "Environment": "[parameters('environmentName')]",
+              "Project": "Manuals",
+              "ManagedBy": "Bicep"
+            },
+            "keyVaultName": "[format('kv-manuals-{0}', parameters('environmentName'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.KeyVault/vaults",
+              "apiVersion": "2024-12-01-preview",
+              "name": "[variables('keyVaultName')]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('tags')]",
+              "properties": {
+                "enabledForDeployment": true,
+                "enabledForTemplateDeployment": true,
+                "tenantId": "[subscription().tenantId]",
+                "accessPolicies": "[if(not(empty(parameters('currentUserObjectId'))), createArray(createObject('tenantId', subscription().tenantId, 'objectId', parameters('currentUserObjectId'), 'permissions', createObject('keys', createArray('Get', 'List', 'Update', 'Create', 'Delete'), 'secrets', createArray('Get', 'List', 'Set', 'Delete'), 'certificates', createArray('Get', 'List', 'Update', 'Create', 'Delete')))), createArray())]",
+                "sku": {
+                  "family": "A",
+                  "name": "standard"
+                },
+                "networkAcls": {
+                  "defaultAction": "Allow",
+                  "bypass": "AzureServices"
+                }
+              }
+            }
+          ],
+          "outputs": {
+            "keyVaultName": {
+              "type": "string",
+              "value": "[variables('keyVaultName')]"
+            },
+            "keyVaultId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+            },
+            "keyVaultUri": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), '2024-12-01-preview').vaultUri]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "sqlPasswordManagement",
+      "resourceGroup": "[variables('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "keyVaultName": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'keyVaultDeployment'), '2022-09-01').outputs.keyVaultName.value]"
+          },
+          "secretName": {
+            "value": "sqlAdminPassword"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.34.44.8038",
+              "templateHash": "9730892476817898520"
+            }
+          },
+          "parameters": {
+            "keyVaultName": {
+              "type": "string",
+              "metadata": {
+                "description": "Key Vault waar het SQL wachtwoord is opgeslagen"
+              }
+            },
+            "secretName": {
+              "type": "string",
+              "defaultValue": "sqlAdminPassword"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Resources/deploymentScripts",
+              "apiVersion": "2020-10-01",
+              "name": "[format('checkSqlPassword-{0}', uniqueString(resourceGroup().id))]",
+              "location": "[parameters('location')]",
+              "kind": "AzureCLI",
+              "properties": {
+                "azCliVersion": "2.40.0",
+                "timeout": "PT5M",
+                "retentionInterval": "P1D",
+                "environmentVariables": [
+                  {
+                    "name": "KEYVAULT_NAME",
+                    "value": "[parameters('keyVaultName')]"
+                  },
+                  {
+                    "name": "SECRET_NAME",
+                    "value": "[parameters('secretName')]"
+                  },
+                  {
+                    "name": "SUBSCRIPTION_ID",
+                    "value": "[subscription().subscriptionId]"
+                  },
+                  {
+                    "name": "RESOURCE_GROUP",
+                    "value": "[resourceGroup().name]"
+                  },
+                  {
+                    "name": "DEPLOYMENT_NAME",
+                    "value": "[deployment().name]"
+                  }
+                ],
+                "scriptContent": "      #!/bin/bash\r\n      \r\n      # Controleer of het secret al bestaat\r\n      SECRET_EXISTS=$(az keyvault secret list --vault-name $KEYVAULT_NAME --query \"[?name=='$SECRET_NAME'].name\" -o tsv)\r\n      \r\n      if [ -n \"$SECRET_EXISTS\" ]; then\r\n        # Secret bestaat, gebruik bestaand wachtwoord\r\n        echo \"Secret bestaat al, bestaand wachtwoord wordt gebruikt\"\r\n        SECRET_VALUE=$(az keyvault secret show --vault-name $KEYVAULT_NAME --name $SECRET_NAME --query \"value\" -o tsv)\r\n        echo \"{ \\\"password\\\": \\\"$SECRET_VALUE\\\", \\\"isNew\\\": false }\" > $AZ_SCRIPTS_OUTPUT_PATH\r\n      else\r\n        # Secret bestaat niet, genereer een nieuw wachtwoord\r\n        echo \"Secret bestaat niet, nieuw wachtwoord wordt gemaakt\"\r\n        \r\n        # Genereer een sterk wachtwoord\r\n        UNIQUE_STRING_1=$(echo -n \"$SUBSCRIPTION_ID$RESOURCE_GROUP$DEPLOYMENT_NAME\" | md5sum | head -c 8)\r\n        UNIQUE_STRING_2=$(echo -n \"$RESOURCE_GROUP$SUBSCRIPTION_ID\" | md5sum | head -c 8)\r\n        NEW_PASSWORD=\"${UNIQUE_STRING_1}${UNIQUE_STRING_2}Aa1!\"\r\n        \r\n        # Sla het nieuwe wachtwoord op in Key Vault\r\n        az keyvault secret set --vault-name $KEYVAULT_NAME --name $SECRET_NAME --value \"$NEW_PASSWORD\" > /dev/null\r\n        echo \"{ \\\"password\\\": \\\"$NEW_PASSWORD\\\", \\\"isNew\\\": true }\" > $AZ_SCRIPTS_OUTPUT_PATH\r\n      fi\r\n    ",
+                "cleanupPreference": "OnSuccess"
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'keyVaultDeployment')]",
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "applicationInsightsDeployment",
+      "resourceGroup": "[variables('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "environmentName": {
+            "value": "[parameters('environmentName')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.34.44.8038",
+              "templateHash": "7423708233877568568"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Application Insights configuratie voor Manuals project"
+              }
+            },
+            "environmentName": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "tags": {
+              "Environment": "[parameters('environmentName')]",
+              "Project": "Manuals",
+              "ManagedBy": "Bicep"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Insights/components",
+              "apiVersion": "2020-02-02",
+              "name": "[format('ai-manuals-{0}', parameters('environmentName'))]",
+              "location": "[parameters('location')]",
+              "kind": "web",
+              "tags": "[variables('tags')]",
+              "properties": {
+                "Application_Type": "web"
+              }
+            }
+          ],
+          "outputs": {
+            "appInsightsInstrumentationKey": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Insights/components', format('ai-manuals-{0}', parameters('environmentName'))), '2020-02-02').InstrumentationKey]"
+            },
+            "appInsightsName": {
+              "type": "string",
+              "value": "[format('ai-manuals-{0}', parameters('environmentName'))]"
+            },
+            "appInsightsConnectionString": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Insights/components', format('ai-manuals-{0}', parameters('environmentName'))), '2020-02-02').ConnectionString]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "storageDeployment",
+      "resourceGroup": "[variables('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "environmentName": {
+            "value": "[parameters('environmentName')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.34.44.8038",
+              "templateHash": "4492072953462379904"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Storage account voor Manuals project"
+              }
+            },
+            "environmentName": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "tags": {
+              "Environment": "[parameters('environmentName')]",
+              "Project": "Manuals",
+              "ManagedBy": "Bicep"
+            },
+            "storageAccountName": "[format('stomanualspdfs{0}', parameters('environmentName'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2022-09-01",
+              "name": "[variables('storageAccountName')]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('tags')]",
+              "sku": {
+                "name": "Standard_LRS"
+              },
+              "kind": "StorageV2",
+              "properties": {
+                "supportsHttpsTrafficOnly": true,
+                "minimumTlsVersion": "TLS1_2",
+                "networkAcls": {
+                  "defaultAction": "Allow",
+                  "bypass": "AzureServices",
+                  "virtualNetworkRules": [],
+                  "ipRules": []
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices",
+              "apiVersion": "2022-09-01",
+              "name": "[format('{0}/{1}', variables('storageAccountName'), 'default')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2022-09-01",
+              "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', 'manuals')]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2022-09-01",
+              "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', 'uploads')]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]"
+              ]
+            }
+          ],
+          "outputs": {
+            "storageAccountName": {
+              "type": "string",
+              "value": "[variables('storageAccountName')]"
+            },
+            "storageAccountId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+            },
+            "connectionString": {
+              "type": "string",
+              "metadata": {
+                "description": "Storage account connection string zonder access keys"
+              },
+              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};EndpointSuffix={1};', variables('storageAccountName'), environment().suffixes.storage)]"
+            },
+            "manualsContainerName": {
+              "type": "string",
+              "value": "manuals"
+            },
+            "uploadsContainerName": {
+              "type": "string",
+              "value": "uploads"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "sqlServerDeployment",
+      "resourceGroup": "[variables('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('sqlLocation')]"
+          },
+          "environmentName": {
+            "value": "[parameters('environmentName')]"
+          },
+          "adminUsername": {
+            "value": "[parameters('sqlAdminUsername')]"
+          },
+          "keyVaultName": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'keyVaultDeployment'), '2022-09-01').outputs.keyVaultName.value]"
+          },
+          "secretName": {
+            "value": "sqlAdminPassword"
+          },
+          "adminGroupName": {
+            "value": "[parameters('sqlAdminGroupName')]"
+          },
+          "adminGroupObjectId": {
+            "value": "[parameters('sqlAdminGroupObjectId')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.34.44.8038",
+              "templateHash": "17220977966618324974"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Azure SQL Server voor Manuals project"
+              }
+            },
+            "environmentName": {
+              "type": "string"
+            },
+            "adminUsername": {
+              "type": "securestring"
+            },
+            "keyVaultName": {
+              "type": "string"
+            },
+            "secretName": {
+              "type": "string",
+              "defaultValue": "sqlAdminPassword"
+            },
+            "adminGroupName": {
+              "type": "string"
+            },
+            "adminGroupObjectId": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "tags": {
+              "Environment": "[parameters('environmentName')]",
+              "Project": "Manuals",
+              "ManagedBy": "Bicep"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Sql/servers",
+              "apiVersion": "2022-05-01-preview",
+              "name": "[format('sqlserver-manuals-{0}', parameters('environmentName'))]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('tags')]",
+              "properties": {
+                "administratorLogin": "[parameters('adminUsername')]",
+                "administratorLoginPassword": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', split(format('{0}/{1}', parameters('keyVaultName'), parameters('secretName')), '/')[0], split(format('{0}/{1}', parameters('keyVaultName'), parameters('secretName')), '/')[1]), '2022-07-01').value]",
+                "publicNetworkAccess": "Enabled",
+                "minimalTlsVersion": "1.2",
+                "administrators": {
+                  "administratorType": "ActiveDirectory",
+                  "principalType": "Group",
+                  "login": "[parameters('adminGroupName')]",
+                  "sid": "[parameters('adminGroupObjectId')]",
+                  "tenantId": "[subscription().tenantId]",
+                  "azureADOnlyAuthentication": false
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Sql/servers/firewallRules",
+              "apiVersion": "2022-05-01-preview",
+              "name": "[format('{0}/{1}', format('sqlserver-manuals-{0}', parameters('environmentName')), 'AllowAzureServices')]",
+              "properties": {
+                "startIpAddress": "0.0.0.0",
+                "endIpAddress": "0.0.0.0"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', format('sqlserver-manuals-{0}', parameters('environmentName')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "sqlServerName": {
+              "type": "string",
+              "value": "[format('sqlserver-manuals-{0}', parameters('environmentName'))]"
+            },
+            "sqlServerFQDN": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Sql/servers', format('sqlserver-manuals-{0}', parameters('environmentName'))), '2022-05-01-preview').fullyQualifiedDomainName]"
+            },
+            "sqlServerId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Sql/servers', format('sqlserver-manuals-{0}', parameters('environmentName')))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'keyVaultDeployment')]",
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlPasswordManagement')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "sqlDatabaseDeployment",
+      "resourceGroup": "[variables('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('sqlLocation')]"
+          },
+          "sqlServerName": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlServerDeployment'), '2022-09-01').outputs.sqlServerName.value]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.34.44.8038",
+              "templateHash": "448607989443419133"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Azure SQL Database voor Manuals project"
+              }
+            },
+            "sqlServerName": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {}
+            },
+            "databaseName": {
+              "type": "string",
+              "defaultValue": "manuals-db"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Sql/servers/databases",
+              "apiVersion": "2022-05-01-preview",
+              "name": "[format('{0}/{1}', parameters('sqlServerName'), parameters('databaseName'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Basic",
+                "tier": "Basic"
+              },
+              "properties": {
+                "maxSizeBytes": 2147483648
+              }
+            }
+          ],
+          "outputs": {
+            "sqlDatabaseName": {
+              "type": "string",
+              "value": "[parameters('databaseName')]"
+            },
+            "sqlDatabaseId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Sql/servers/databases', parameters('sqlServerName'), parameters('databaseName'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlServerDeployment')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "appServiceDeployment",
+      "resourceGroup": "[variables('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "environmentName": {
+            "value": "[parameters('environmentName')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.34.44.8038",
+              "templateHash": "2531766238884930128"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "App Service voor Manuals API"
+              }
+            },
+            "environmentName": {
+              "type": "string"
+            },
+            "appServicePlanName": {
+              "type": "string",
+              "defaultValue": "[format('asp-manuals-{0}', parameters('environmentName'))]"
+            },
+            "appName": {
+              "type": "string",
+              "defaultValue": "[format('app-manuals-api-{0}', parameters('environmentName'))]"
+            }
+          },
+          "variables": {
+            "tags": {
+              "Environment": "[parameters('environmentName')]",
+              "Project": "Manuals",
+              "ManagedBy": "Bicep"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/sites/config",
+              "apiVersion": "2022-03-01",
+              "name": "[format('{0}/{1}', parameters('appName'), 'web')]",
+              "properties": {
+                "httpLoggingEnabled": true,
+                "remoteDebuggingEnabled": false
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', parameters('appName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Web/serverfarms",
+              "apiVersion": "2022-03-01",
+              "name": "[parameters('appServicePlanName')]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('tags')]",
+              "sku": {
+                "name": "F1",
+                "tier": "Free"
+              },
+              "kind": "app",
+              "properties": {
+                "zoneRedundant": false
+              }
+            },
+            {
+              "type": "Microsoft.Web/sites",
+              "apiVersion": "2022-03-01",
+              "name": "[parameters('appName')]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('tags')]",
+              "kind": "app",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('appServicePlanName'))]",
+                "httpsOnly": true,
+                "siteConfig": {
+                  "netFrameworkVersion": "v8.0",
+                  "alwaysOn": false,
+                  "ftpsState": "Disabled",
+                  "minTlsVersion": "1.2"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', parameters('appServicePlanName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "appServiceName": {
+              "type": "string",
+              "value": "[parameters('appName')]"
+            },
+            "appServiceId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Web/sites', parameters('appName'))]"
+            },
+            "appServicePrincipalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', parameters('appName')), '2022-03-01', 'full').identity.principalId]"
+            },
+            "appServiceHostName": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/sites', parameters('appName')), '2022-03-01').defaultHostName]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "sqlRoleAssignmentDeployment",
+      "resourceGroup": "[variables('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "sqlServerName": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlServerDeployment'), '2022-09-01').outputs.sqlServerName.value]"
+          },
+          "principalId": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'appServiceDeployment'), '2022-09-01').outputs.appServicePrincipalId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.34.44.8038",
+              "templateHash": "6232852606723262849"
+            }
+          },
+          "parameters": {
+            "sqlServerName": {
+              "type": "string",
+              "metadata": {
+                "description": "Role assignment voor SQL server toegang via Managed Identity"
+              }
+            },
+            "principalId": {
+              "type": "string"
+            },
+            "principalType": {
+              "type": "string",
+              "defaultValue": "ServicePrincipal"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[format('Microsoft.Sql/servers/{0}', parameters('sqlServerName'))]",
+              "name": "[guid(subscription().id, resourceId('Microsoft.Sql/servers', parameters('sqlServerName')), parameters('principalId'), 'SqlContributor')]",
+              "properties": {
+                "principalId": "[parameters('principalId')]",
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '6d8ee4ec-f05a-4a1d-8b40-e833da248195')]",
+                "principalType": "[parameters('principalType')]"
+              }
+            }
+          ],
+          "outputs": {
+            "roleAssignmentId": {
+              "type": "string",
+              "value": "[extensionResourceId(resourceId('Microsoft.Sql/servers', parameters('sqlServerName')), 'Microsoft.Authorization/roleAssignments', guid(subscription().id, resourceId('Microsoft.Sql/servers', parameters('sqlServerName')), parameters('principalId'), 'SqlContributor'))]"
+            },
+            "roleDefinitionId": {
+              "type": "string",
+              "value": "[reference(extensionResourceId(resourceId('Microsoft.Sql/servers', parameters('sqlServerName')), 'Microsoft.Authorization/roleAssignments', guid(subscription().id, resourceId('Microsoft.Sql/servers', parameters('sqlServerName')), parameters('principalId'), 'SqlContributor')), '2022-04-01').roleDefinitionId]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'appServiceDeployment')]",
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlServerDeployment')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "sqlDbUserDeployment",
+      "resourceGroup": "[variables('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "sqlServerName": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlServerDeployment'), '2022-09-01').outputs.sqlServerName.value]"
+          },
+          "sqlDatabaseName": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlDatabaseDeployment'), '2022-09-01').outputs.sqlDatabaseName.value]"
+          },
+          "sqlAdminUsername": {
+            "value": "[parameters('sqlAdminUsername')]"
+          },
+          "keyVaultName": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'keyVaultDeployment'), '2022-09-01').outputs.keyVaultName.value]"
+          },
+          "secretName": {
+            "value": "sqlAdminPassword"
+          },
+          "appServiceName": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'appServiceDeployment'), '2022-09-01').outputs.appServiceName.value]"
+          },
+          "appServicePrincipalId": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'appServiceDeployment'), '2022-09-01').outputs.appServicePrincipalId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.34.44.8038",
+              "templateHash": "11620476755689705298"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Script om SQL Database gebruikers in te stellen voor Managed Identity"
+              }
+            },
+            "sqlServerName": {
+              "type": "string"
+            },
+            "sqlDatabaseName": {
+              "type": "string"
+            },
+            "sqlAdminUsername": {
+              "type": "string"
+            },
+            "keyVaultName": {
+              "type": "string"
+            },
+            "secretName": {
+              "type": "string",
+              "defaultValue": "sqlAdminPassword"
+            },
+            "appServiceName": {
+              "type": "string"
+            },
+            "appServicePrincipalId": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Resources/deploymentScripts",
+              "apiVersion": "2020-10-01",
+              "name": "[format('setupSqlUser-{0}', uniqueString(resourceGroup().id))]",
+              "location": "[parameters('location')]",
+              "kind": "AzureCLI",
+              "properties": {
+                "azCliVersion": "2.40.0",
+                "timeout": "PT30M",
+                "retentionInterval": "P1D",
+                "environmentVariables": [
+                  {
+                    "name": "SQLSERVER",
+                    "value": "[parameters('sqlServerName')]"
+                  },
+                  {
+                    "name": "DATABASE",
+                    "value": "[parameters('sqlDatabaseName')]"
+                  },
+                  {
+                    "name": "ADMIN_USERNAME",
+                    "value": "[parameters('sqlAdminUsername')]"
+                  },
+                  {
+                    "name": "ADMIN_PASSWORD",
+                    "value": "[reference(resourceId('Microsoft.KeyVault/vaults/secrets', split(format('{0}/{1}', parameters('keyVaultName'), parameters('secretName')), '/')[0], split(format('{0}/{1}', parameters('keyVaultName'), parameters('secretName')), '/')[1]), '2022-07-01').value]"
+                  },
+                  {
+                    "name": "APPSERVICE_NAME",
+                    "value": "[parameters('appServiceName')]"
+                  },
+                  {
+                    "name": "PRINCIPAL_ID",
+                    "value": "[parameters('appServicePrincipalId')]"
+                  }
+                ],
+                "scriptContent": "      #!/bin/bash\r\n      \r\n      # Installeren van sqlcmd en andere dependencies\r\n      echo \"Installeren van dependencies...\"\r\n      apt-get update\r\n      apt-get install -y curl unixodbc gnupg\r\n      \r\n      # Microsoft repositories toevoegen voor MSSQL-tools\r\n      curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -\r\n      curl https://packages.microsoft.com/config/ubuntu/20.04/prod.list > /etc/apt/sources.list.d/mssql-release.list\r\n      apt-get update\r\n      ACCEPT_EULA=Y apt-get install -y msodbcsql17 mssql-tools\r\n      echo 'export PATH=\"$PATH:/opt/mssql-tools/bin\"' >> ~/.bashrc\r\n      source ~/.bashrc\r\n      \r\n      # Wachten tot SQL Server beschikbaar is\r\n      echo \"Wachten tot SQL Server beschikbaar is...\"\r\n      sleep 30\r\n      \r\n      # SQL-script aanmaken om de gebruiker in te stellen\r\n      SQL_SCRIPT=$(cat <<EOF\r\n      -- Maak de gebruiker aan op basis van managed identity\r\n      IF NOT EXISTS (SELECT * FROM sys.database_principals WHERE name = N'$APPSERVICE_NAME')\r\n      BEGIN\r\n          CREATE USER [$APPSERVICE_NAME] FROM EXTERNAL PROVIDER;\r\n          ALTER ROLE db_datareader ADD MEMBER [$APPSERVICE_NAME];\r\n          ALTER ROLE db_datawriter ADD MEMBER [$APPSERVICE_NAME];\r\n          ALTER ROLE db_ddladmin ADD MEMBER [$APPSERVICE_NAME];\r\n          PRINT 'Gebruiker $APPSERVICE_NAME aangemaakt en rechten toegekend.';\r\n      END\r\n      ELSE\r\n      BEGIN\r\n          PRINT 'Gebruiker $APPSERVICE_NAME bestaat al.';\r\n      END\r\n      GO\r\n      EOF\r\n      )\r\n      \r\n      echo \"SQL Script uitvoeren...\"\r\n      echo \"$SQL_SCRIPT\" > setup_user.sql\r\n      \r\n      # SQL-script uitvoeren\r\n      /opt/mssql-tools/bin/sqlcmd -S $SQLSERVER.database.windows.net -d $DATABASE -U $ADMIN_USERNAME -P $ADMIN_PASSWORD -i setup_user.sql\r\n      \r\n      if [ $? -eq 0 ]; then\r\n          echo \"SQL gebruiker succesvol ingesteld.\"\r\n          echo \"{ \\\"status\\\": \\\"success\\\" }\" > $AZ_SCRIPTS_OUTPUT_PATH\r\n      else\r\n          echo \"Fout bij het instellen van SQL gebruiker.\"\r\n          echo \"{ \\\"status\\\": \\\"failed\\\" }\" > $AZ_SCRIPTS_OUTPUT_PATH\r\n      fi\r\n    ",
+                "cleanupPreference": "OnSuccess"
+              },
+              "identity": {
+                "type": "SystemAssigned"
+              }
+            }
+          ],
+          "outputs": {
+            "status": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', format('setupSqlUser-{0}', uniqueString(resourceGroup().id))), '2020-10-01').outputs.status]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'appServiceDeployment')]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'keyVaultDeployment')]",
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlDatabaseDeployment')]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlServerDeployment')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "staticWebAppDeployment",
+      "resourceGroup": "[variables('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "environmentName": {
+            "value": "[parameters('environmentName')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.34.44.8038",
+              "templateHash": "384210082493420074"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Static Web App voor Manuals Frontend"
+              }
+            },
+            "environmentName": {
+              "type": "string"
+            },
+            "appName": {
+              "type": "string",
+              "defaultValue": "[format('stapp-manuals-{0}', parameters('environmentName'))]"
+            }
+          },
+          "variables": {
+            "tags": {
+              "Environment": "[parameters('environmentName')]",
+              "Project": "Manuals",
+              "ManagedBy": "Bicep"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/staticSites",
+              "apiVersion": "2022-03-01",
+              "name": "[parameters('appName')]",
+              "location": "[parameters('location')]",
+              "tags": "[variables('tags')]",
+              "sku": {
+                "name": "Free",
+                "tier": "Free"
+              },
+              "properties": {}
+            }
+          ],
+          "outputs": {
+            "staticWebAppName": {
+              "type": "string",
+              "value": "[parameters('appName')]"
+            },
+            "staticWebAppId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Web/staticSites', parameters('appName'))]"
+            },
+            "staticWebAppDefaultHostname": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Web/staticSites', parameters('appName')), '2022-03-01').defaultHostname]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "appServiceConfigDeployment",
+      "resourceGroup": "[variables('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "environmentName": {
+            "value": "[parameters('environmentName')]"
+          },
+          "appServiceName": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'appServiceDeployment'), '2022-09-01').outputs.appServiceName.value]"
+          },
+          "appInsightsConnectionString": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'applicationInsightsDeployment'), '2022-09-01').outputs.appInsightsConnectionString.value]"
+          },
+          "sqlServerName": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlServerDeployment'), '2022-09-01').outputs.sqlServerName.value]"
+          },
+          "sqlDatabaseName": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlDatabaseDeployment'), '2022-09-01').outputs.sqlDatabaseName.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.34.44.8038",
+              "templateHash": "18187932165654811328"
+            }
+          },
+          "parameters": {
+            "appServiceName": {
+              "type": "string",
+              "metadata": {
+                "description": "Configure application settings en connection strings voor App Service"
+              }
+            },
+            "environmentName": {
+              "type": "string"
+            },
+            "appInsightsConnectionString": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "sqlServerName": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "sqlDatabaseName": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "frontendBaseUrl": {
+              "type": "string",
+              "defaultValue": "[format('https://app-manuals-frontend-{0}.azurestaticapps.net', parameters('environmentName'))]"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/sites/config",
+              "apiVersion": "2022-03-01",
+              "name": "[format('{0}/{1}', parameters('appServiceName'), 'appsettings')]",
+              "properties": {
+                "ASPNETCORE_ENVIRONMENT": "[parameters('environmentName')]",
+                "APPLICATIONINSIGHTS_CONNECTION_STRING": "[parameters('appInsightsConnectionString')]",
+                "ApplicationInsightsAgent_EXTENSION_VERSION": "~3",
+                "Frontend:BaseUrl": "[parameters('frontendBaseUrl')]"
+              }
+            },
+            {
+              "condition": "[and(not(empty(parameters('sqlServerName'))), not(empty(parameters('sqlDatabaseName'))))]",
+              "type": "Microsoft.Web/sites/config",
+              "apiVersion": "2022-03-01",
+              "name": "[format('{0}/{1}', parameters('appServiceName'), 'connectionstrings')]",
+              "properties": {
+                "DefaultConnection": {
+                  "value": "[format('Server={0}.database.windows.net;Database={1};Authentication=Active Directory MSI;MultipleActiveResultSets=true;', parameters('sqlServerName'), parameters('sqlDatabaseName'))]",
+                  "type": "SQLAzure"
+                }
+              }
+            }
+          ],
+          "outputs": {
+            "status": {
+              "type": "string",
+              "value": "App Service configuration updated"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'applicationInsightsDeployment')]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'appServiceDeployment')]",
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupName'))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlDatabaseDeployment')]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlDbUserDeployment')]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlServerDeployment')]"
+      ]
+    }
+  ],
+  "outputs": {
+    "appInsightsInstrumentationKey": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'applicationInsightsDeployment'), '2022-09-01').outputs.appInsightsInstrumentationKey.value]"
+    },
+    "storageAccountName": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'storageDeployment'), '2022-09-01').outputs.storageAccountName.value]"
+    },
+    "sqlServerName": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlServerDeployment'), '2022-09-01').outputs.sqlServerName.value]"
+    },
+    "sqlDatabaseName": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlDatabaseDeployment'), '2022-09-01').outputs.sqlDatabaseName.value]"
+    },
+    "appServiceName": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'appServiceDeployment'), '2022-09-01').outputs.appServiceName.value]"
+    },
+    "staticWebAppName": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'staticWebAppDeployment'), '2022-09-01').outputs.staticWebAppName.value]"
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "value": "[variables('resourceGroupName')]"
+    },
+    "keyVaultName": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'keyVaultDeployment'), '2022-09-01').outputs.keyVaultName.value]"
+    },
+    "keyVaultUri": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, variables('resourceGroupName')), 'Microsoft.Resources/deployments', 'keyVaultDeployment'), '2022-09-01').outputs.keyVaultUri.value]"
+    }
+  }
+}
