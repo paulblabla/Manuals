@@ -143,15 +143,20 @@ module staticWebApp 'modules/StaticWebApp.bicep' = {
   }
 }
 
-// App Insights connection string instellen als App Setting
-module appInsightsConfig 'modules/AppServiceConfig.bicep' = {
-  name: 'appInsightsConfigDeployment'
+// App Service configuratie module - connectiestrings en app settings
+module appServiceConfig 'modules/AppServiceConfig.bicep' = {
+  name: 'appServiceConfigDeployment'
   scope: resourceGroup
   params: {
     environmentName: environmentName
     appServiceName: appService.outputs.appServiceName
     appInsightsConnectionString: appInsights.outputs.appInsightsConnectionString
+    sqlServerName: sqlServer.outputs.sqlServerName
+    sqlDatabaseName: sqlDatabase.outputs.sqlDatabaseName
   }
+  dependsOn: [
+    sqlDbUser // Zorg dat de SQL gebruiker eerst is aangemaakt
+  ]
 }
 
 // Outputs verzamelen voor gebruik in andere scripts/configuraties
