@@ -3,10 +3,16 @@ param location string = resourceGroup().location
 param sqlServerName string
 param sqlDatabaseName string
 param sqlAdminUsername string
-@secure()
-param sqlAdminPassword string
+param keyVaultName string
+param secretName string = 'sqlAdminPassword'
 param appServiceName string
 param appServicePrincipalId string
+
+// TODO Haal password hier uit ketvault
+resource sqlPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2022-07-01' existing = {
+  name: '${keyVaultName}/${secretName}'
+}
+
 
 // DeploymentScript om SQL-gebruikers in te stellen
 resource setupSqlUserScript 'Microsoft.Resources/deploymentScripts@2020-10-01' = {
@@ -32,7 +38,7 @@ resource setupSqlUserScript 'Microsoft.Resources/deploymentScripts@2020-10-01' =
       }
       {
         name: 'ADMIN_PASSWORD'
-        secureValue: sqlAdminPassword
+        value: sqlPasswordSecret.properties.value
       }
       {
         name: 'APPSERVICE_NAME'
@@ -97,6 +103,10 @@ resource setupSqlUserScript 'Microsoft.Resources/deploymentScripts@2020-10-01' =
       fi
     '''
     cleanupPreference: 'OnSuccess'
+    // Toegang tot KeyVault geven aan het script
+  }
+  identity: {
+    type: 'SystemAssigned'
   }
 }
 
