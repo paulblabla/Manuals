@@ -25,12 +25,16 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2022-03-01' = {
   }
 }
 
-// Web App
+// Web App met Managed Identity
 resource webApp 'Microsoft.Web/sites@2022-03-01' = {
   name: appName
   location: location
   tags: tags
   kind: 'app'
+  // System Assigned Managed Identity inschakelen
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     serverFarmId: appServicePlan.id
     httpsOnly: true
@@ -39,14 +43,6 @@ resource webApp 'Microsoft.Web/sites@2022-03-01' = {
       alwaysOn: false  // Niet beschikbaar in Free tier
       ftpsState: 'Disabled'  // FTPS uitschakelen voor extra beveiliging
       minTlsVersion: '1.2'  // Minimale TLS versie
-      
-      // Basis app settings
-      appSettings: [
-        {
-          name: 'ASPNETCORE_ENVIRONMENT'
-          value: environmentName
-        }
-      ]
     }
   }
 
@@ -62,4 +58,5 @@ resource webApp 'Microsoft.Web/sites@2022-03-01' = {
 
 output appServiceName string = webApp.name
 output appServiceId string = webApp.id
+output appServicePrincipalId string = webApp.identity.principalId
 output appServiceHostName string = webApp.properties.defaultHostName

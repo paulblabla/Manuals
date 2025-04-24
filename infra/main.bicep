@@ -21,9 +21,6 @@ var tags = {
   ManagedBy: 'Bicep'
 }
 
-// Genereer een sterk wachtwoord voor SQL Server
-var sqlPassword = '${take(uniqueString(subscription().id, resourceGroup.id, deployment().name), 8)}${take(uniqueString(resourceGroup.name, subscription().subscriptionId), 8)}Aa1!'
-
 // Resource group aanmaken
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   name: resourceGroupName
@@ -32,7 +29,7 @@ resource resourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = {
 }
 
 // Key Vault aanmaken om secrets op te slaan
-module keyVault 'modules/keyvault.bicep' = {
+module keyVault 'modules/KeyVault.bicep' = {
   name: 'keyVaultDeployment'
   scope: resourceGroup
   params: {
@@ -42,65 +39,118 @@ module keyVault 'modules/keyvault.bicep' = {
   }
 }
 
-// SQL wachtwoord opslaan in Key Vault
-module sqlPasswordSecret 'modules/keyvaultsecret.bicep' = {
-  name: 'sqlPasswordSecret'
+// SQL wachtwoord beheren (ophalen of genereren)
+module sqlPassword 'modules/SqlPasswordManagement.bicep' = {
+  name: 'sqlPasswordManagement'
   scope: resourceGroup
   params: {
     keyVaultName: keyVault.outputs.keyVaultName
     secretName: 'sqlAdminPassword'
-    secretValue: sqlPassword
+    location: location
   }
+  dependsOn: [
+    keyVault
+  ]
 }
 
 // Modules importeren
-module appInsights 'modules/applicationinsights.bicep' = {
+module appInsights 'modules/ApplicationInsights.bicep' = {
   name: 'applicationInsightsDeployment'
-  scope: resourceGroup  // Specifiek de resource group aangeven
+  scope: resourceGroup
   params: {
     location: location
     environmentName: environmentName
   }
 }
 
-module storage 'modules/storage.bicep' = {
+module storage 'modules/Storage.bicep' = {
   name: 'storageDeployment'
-  scope: resourceGroup  // Specifiek de resource group aangeven
+  scope: resourceGroup
   params: {
     location: location
     environmentName: environmentName
   }
 }
 
-module database 'modules/database.bicep' = {
+// Database module deployen 
+module database 'modules/SqlDatabase.bicep' = {
   name: 'databaseDeployment'
-  scope: resourceGroup  // Specifiek de resource group aangeven
+  scope: resourceGroup
   params: {
     location: sqlLocation
     environmentName: environmentName
     adminUsername: sqlAdminUsername
-    adminPassword: sqlPassword
+    adminPassword: sqlPassword.outputs.sqlPassword
     adminGroupName: sqlAdminGroupName
     adminGroupObjectId: sqlAdminGroupObjectId
   }
 }
 
-module appService 'modules/appservice.bicep' = {
+// App Service module met Managed Identity
+module appService 'modules/AppService.bicep' = {
   name: 'appServiceDeployment'
-  scope: resourceGroup  // Specifiek de resource group aangeven
+  scope: resourceGroup
+  params: {
+    location: location
+    environmentName: environmentName
+    sqlServerName: database.outputs.sqlServerName
+    sqlDatabaseName: database.outputs.sqlDatabaseName
+  }
+}
+
+// Role assignment voor App Service Managed Identity naar SQL
+module sqlRoleAssignment 'modules/SqlRoleAssignment.bicep' = {
+  name: 'sqlRoleAssignmentDeployment'
+  scope: resourceGroup
+  params: {
+    sqlServerName: database.outputs.sqlServerName
+    principalId: appService.outputs.appServicePrincipalId
+  }
+  dependsOn: [
+    database
+    appService
+  ]
+}
+
+// SQL User aanmaken voor de Managed Identity
+module sqlDbUser 'modules/SqlDatabaseUser.bicep' = {
+  name: 'sqlDbUserDeployment'
+  scope: resourceGroup
+  params: {
+    location: location
+    sqlServerName: database.outputs.sqlServerName
+    sqlDatabaseName: database.outputs.sqlDatabaseName
+    sqlAdminUsername: sqlAdminUsername
+    sqlAdminPassword: sqlPassword.outputs.sqlPassword
+    appServiceName: appService.outputs.appServiceName
+    appServicePrincipalId: appService.outputs.appServicePrincipalId
+  }
+  dependsOn: [
+    sqlRoleAssignment
+  ]
+}
+
+module staticWebApp 'modules/StaticWebApp.bicep' = {
+  name: 'staticWebAppDeployment'
+  scope: resourceGroup
   params: {
     location: location
     environmentName: environmentName
   }
 }
 
-module staticWebApp 'modules/staticwebapp.bicep' = {
-  name: 'staticWebAppDeployment'
-  scope: resourceGroup  // Specifiek de resource group aangeven
+// App Insights connection string instellen als App Setting
+module appInsightsConfig 'modules/AppServiceConfig.bicep' = {
+  name: 'appInsightsConfigDeployment'
+  scope: resourceGroup
   params: {
-    location: location
-    environmentName: environmentName
+    appServiceName: appService.outputs.appServiceName
+    appInsightsConnectionString: appInsights.outputs.appInsightsConnectionString
   }
+  dependsOn: [
+    appService
+    appInsights
+  ]
 }
 
 // Outputs verzamelen voor gebruik in andere scripts/configuraties
@@ -113,3 +163,4 @@ output staticWebAppName string = staticWebApp.outputs.staticWebAppName
 output resourceGroupName string = resourceGroup.name
 output keyVaultName string = keyVault.outputs.keyVaultName
 output keyVaultUri string = keyVault.outputs.keyVaultUri
+output isNewSqlPassword bool = sqlPassword.outputs.isNewPassword
